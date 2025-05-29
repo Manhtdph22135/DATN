@@ -110,11 +110,7 @@ function goToAdminDashboard() {
             <router-link to="/admin/hoadon" class="sidebar-link"><i class="bi bi-receipt menu-icon"></i> Hoá
               đơn</router-link>
           </li>
-          <li>
-            <router-link to="/admin/trahang" class="sidebar-link"><i class="bi bi-arrow-return-left menu-icon"></i> Trả
-              hàng hoàn
-              tiền</router-link>
-          </li>
+          
           <!-- <li>
             <router-link to="/admin/thongke" class="sidebar-link"><i class="bi bi-bar-chart menu-icon"></i> Thống
               kê</router-link>
@@ -147,7 +143,7 @@ function goToAdminDashboard() {
                   <i class="bi bi-bag"></i> Đơn hàng của tôi
                 </router-link>
                 <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard">
-                  <i class="bi bi-speedometer2"></i> Dashboard
+                  <i class="bi bi-speedometer2"></i> Quầy
                 </a>
                 <div class="dropdown-divider"></div>
                 <a href="#" class="dropdown-item logout-item" @click.prevent="logout">
@@ -167,19 +163,19 @@ function goToAdminDashboard() {
     <!-- Header -->
     <header class="store-header">
       <div class="logo-container">
-        <router-link to="/">
+        <router-link to="/shop">
           <img src="@/components/img/logo.png" alt="POLY" class="logo" />
         </router-link>
       </div>
       <nav class="main-nav">
         <ul>
-          <li><router-link to="/shop">SHOP ALL</router-link></li>
-          <li><router-link to="/news">NEWS</router-link></li>
-          <li><router-link to="/tops">TOPS</router-link></li>
-          <li><router-link to="/bottoms">BOTTOMS</router-link></li>
-          <li><router-link to="/sale">SALE</router-link></li>
-          <li><router-link to="/hot">HOT</router-link></li>
-          <li><router-link to="/contact">CONTACT</router-link></li>
+          <li><router-link to="/shop">Trang chủ</router-link></li>
+          <li><router-link to="/news">Bài viết</router-link></li>
+          <li><router-link to="/tops">Áo</router-link></li>
+          <li><router-link to="/bottoms">Quần</router-link></li>
+          <li><router-link to="/sale">Ưu đãi</router-link></li>
+          <li><router-link to="/hot">Nổi bật</router-link></li>
+          <li><router-link to="/contact">Liên hệ</router-link></li>
         </ul>
       </nav>
       <div class="header-actions">
@@ -220,7 +216,7 @@ function goToAdminDashboard() {
                 <i class="bi bi-bag"></i> Đơn hàng của tôi
               </router-link>
               <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard">
-                <i class="bi bi-speedometer2"></i> Dashboard
+                <i class="bi bi-speedometer2"></i> Quầy
               </a>
               <div class="dropdown-divider"></div>
               <a href="#" class="dropdown-item logout-item" @click.prevent="logout">
@@ -254,7 +250,7 @@ function goToAdminDashboard() {
           <p>polyshop@gmail.com</p>
         </div>
         <div class="footer-column ms-5">
-          <h3 style="font-weight: bold;">Service</h3>
+          <h3 style="font-weight: bold;">Hỗ trợ</h3>
           <p>Hướng dẫn mua hàng</p>
           <p>Quy cách đổi hàng</p>
         </div>
