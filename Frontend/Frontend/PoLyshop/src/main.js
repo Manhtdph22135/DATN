@@ -7,6 +7,8 @@ import App from "./App.vue";
 import router from "./router";
 import axios from "axios";
 
+
+
 // Development mode flag - set to true to use mock data instead of API calls
 const isDevelopmentMode = true;
 
@@ -96,6 +98,8 @@ axios.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+
 
 // Global axios configuration to prevent any direct API calls to localhost:7055
 // Global axios configuration to prevent any direct API calls to localhost:7055

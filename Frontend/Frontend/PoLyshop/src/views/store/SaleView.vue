@@ -22,7 +22,7 @@ const mockSaleProducts = [
     price: 280000,
     originalPrice: 350000,
     discount: 20,
-    image: "https://placehold.co/300x400",
+    image: "https://beobanhbao.vn/wp-content/uploads/2025/04/kiotviet_7d3ff2155976b140a8e98b3c0a998da0.jpg",
     category: "tops",
   },
   {
@@ -31,7 +31,7 @@ const mockSaleProducts = [
     price: 450000,
     originalPrice: 550000,
     discount: 18,
-    image: "https://placehold.co/300x400",
+    image: "https://product.hstatic.net/1000210295/product/1r0a0012_edited__1__110e433881124c5b92927fcbb4b05883_master.png",
     category: "bottoms",
   },
   {
@@ -40,7 +40,7 @@ const mockSaleProducts = [
     price: 550000,
     originalPrice: 650000,
     discount: 15,
-    image: "https://placehold.co/300x400",
+    image: "https://bizweb.dktcdn.net/100/425/004/products/359982484-1012756069750903-82817.jpg?v=1690893059680",
     category: "tops",
   },
   {
@@ -49,7 +49,7 @@ const mockSaleProducts = [
     price: 350000,
     originalPrice: 420000,
     discount: 17,
-    image: "https://placehold.co/300x400",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMjPggCgdji5e2C8q2XnENMtS3NwyECDqHSA&s",
     category: "bottoms",
   },
   {
@@ -58,7 +58,7 @@ const mockSaleProducts = [
     price: 240000,
     originalPrice: 320000,
     discount: 25,
-    image: "https://placehold.co/300x400",
+    image: "https://bizweb.dktcdn.net/thumb/large/100/360/581/products/tui-deo-cheo-mini-gence-da-bo-mill-td05-1.jpg?v=1733473960853",
     category: "accessories",
   },
   {
@@ -67,7 +67,7 @@ const mockSaleProducts = [
     price: 750000,
     originalPrice: 950000,
     discount: 21,
-    image: "https://placehold.co/300x400",
+    image: "https://product.hstatic.net/200000370449/product/39d5890d348eedd0b49f_56c4e697565743e6bab0e9b3ac51c9c8_master.jpg",
     category: "tops",
   },
   {
@@ -76,7 +76,7 @@ const mockSaleProducts = [
     price: 550000,
     originalPrice: 650000,
     discount: 15,
-    image: "https://placehold.co/300x400",
+    image: "https://zizoou.com/cdn/shop/files/Quan-tui-hop-kaki-cao-cap-Quan-jogger-unisex-vang-be-khaki-7-1.jpg?v=1698800965",
     category: "bottoms",
   },
   {
@@ -85,7 +85,7 @@ const mockSaleProducts = [
     price: 180000,
     originalPrice: 240000,
     discount: 25,
-    image: "https://placehold.co/300x400",
+    image: "https://product.hstatic.net/200000642007/product/50nyd_3ahtd014n_9_c345dc06b3a041ccbe2b4bb66a9d45b4_4f5a8a71810b4deeaf2675d88bd6f177_master.jpg",
     category: "accessories",
   },
   {
@@ -94,7 +94,7 @@ const mockSaleProducts = [
     price: 320000,
     originalPrice: 380000,
     discount: 16,
-    image: "https://placehold.co/300x400",
+    image: "https://product.hstatic.net/1000304105/product/ao-so-mi-nam-den1-t3321c8571__3__a8f44e60eb3e4bad9ccff90d1b0f8445.jpg",
     category: "tops",
   },
   {
@@ -103,7 +103,7 @@ const mockSaleProducts = [
     price: 320000,
     originalPrice: 380000,
     discount: 16,
-    image: "https://placehold.co/300x400",
+    image: "https://product.hstatic.net/1000253775/product/qsid0137_06f8df98b65b4ffe82851bcd5a011ff1_1024x1024.jpg",
     category: "bottoms",
   },
   {
@@ -112,7 +112,7 @@ const mockSaleProducts = [
     price: 60000,
     originalPrice: 90000,
     discount: 33,
-    image: "https://placehold.co/300x400",
+    image: "https://down-vn.img.susercontent.com/file/485728c30f1c3dcdfbd6a8e16d6992d6",
     category: "accessories",
   },
   {
@@ -121,7 +121,7 @@ const mockSaleProducts = [
     price: 290000,
     originalPrice: 380000,
     discount: 24,
-    image: "https://placehold.co/300x400",
+    image: "https://4menshop.com/images/thumbs/2024/09/ao-polo-tron-signature-phoi-day-soc-form-regular-po134-mau-do-do-18712-slide-products-66ebd68b661c8.jpg",
     category: "tops",
   },
 ];
