@@ -3,7 +3,7 @@
     <div class="hero-section">
       <div class="hero-content">
         <h1 class="hero-title">NEW SEASON DROP!</h1>
-        <button class="shop-now-btn">SHOP NOW</button>
+        <router-link to="/hot"><button class="shop-now-btn">Mua ngay</button></router-link>
       </div>
     </div>
 
@@ -17,11 +17,13 @@
         <div class="category-column">
           <div class="product-item">
             <div class="product-images">
-              <img
+                <router-link to="/tops">
+                <img
                 src="@/components/img/anh1.webp"
                 alt="Product front"
                 class="product-image"
               />
+                </router-link>
             </div>
             <div class="product-like">
               <i class="bi bi-heart"></i>
@@ -45,9 +47,11 @@
             </div>
             <div class="product-info">
               <h3 class="product-name">MORE PRODUCTS</h3>
-              <button class="more-btn">
+              <router-link to="tops">
+                <button class="more-btn">
                 <i class="bi bi-arrow-right"></i>
               </button>
+              </router-link>
             </div>
           </div>
         </div>
@@ -55,11 +59,13 @@
         <div class="category-column">
           <div class="product-item">
             <div class="product-images">
-              <img
+              <router-link to="/bottoms">
+                <img
                 src="@/components/img/ao2.webp"
                 alt="Product front"
                 class="product-image"
               />
+              </router-link>
             </div>
             <div class="product-like">
               <i class="bi bi-heart"></i>
@@ -83,9 +89,11 @@
             </div>
             <div class="product-info">
               <h3 class="product-name">MORE PRODUCTS</h3>
+             <router-link to="/bottoms">
               <button class="more-btn">
                 <i class="bi bi-arrow-right"></i>
               </button>
+             </router-link>
             </div>
           </div>
         </div>

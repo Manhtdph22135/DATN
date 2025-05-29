@@ -47,7 +47,7 @@ public partial class DbContextShop : DbContext
     public virtual DbSet<Transport> Transports { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Data Source=DEVMANH;Initial Catalog=Duantotnghiep;Integrated Security=True;TrustServerCertificate=True");
+        => optionsBuilder.UseSqlServer("Data Source=localhost;Initial Catalog=Duantotnghiep;Integrated Security=True;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

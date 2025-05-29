@@ -15,7 +15,7 @@
       <div class="product-info">
         <h1 class="product-name">{{ product.name }}</h1>
         <div class="product-price">{{ formatPrice(product.price) }}</div>
-
+        
         <div class="product-details">
           <div class="detail-item">{{ product.gender }}</div>
           <div class="detail-item">{{ product.protection }}</div>
@@ -73,10 +73,10 @@ export default {
         price: 200000,
         gender: "Unisex",
         protection: "UV Protection",
-        mainImage: "https://media1.thehungryjpeg.com/thumbs/800_4262428_zzultqdefwrzpkyb25nsmpzexo4h46xkmpbv2rmb.png",
+        mainImage: "https://namfashion.com/home/wp-content/uploads/2018/07/ao-so-mi-trang-nam-dai-tay-xuat-khau-hang-hieu-brice-3.jpg",
         images: [
-          "https://media1.thehungryjpeg.com/thumbs/800_4262428_zzultqdefwrzpkyb25nsmpzexo4h46xkmpbv2rmb.png",
-          "https://media1.thehungryjpeg.com/thumbs/800_4262428_zzultqdefwrzpkyb25nsmpzexo4h46xkmpbv2rmb.png",
+          "https://namfashion.com/home/wp-content/uploads/2018/07/ao-so-mi-trang-nam-dai-tay-xuat-khau-hang-hieu-brice-2.jpg",
+          "https://namfashion.com/home/wp-content/uploads/2018/07/ao-so-mi-trang-nam-dai-tay-xuat-khau-hang-hieu-brice-1.jpg",
         ],
         sizes: ["M", "L", "XL"],
         colors: ["#fffff", "#b71c1c", "#4CAF50"],
