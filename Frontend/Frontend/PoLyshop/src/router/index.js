@@ -33,6 +33,8 @@ import EmployeeView from "../views/admin/EmployeeView.vue";
 import OrderView from "../views/admin/OrderView.vue";
 import PostView from "../views/admin/PostView.vue";
 import ReturnView from "../views/admin/ReturnView.vue";
+import CustomerViews from "../views/admin/CustomerView.vue";
+
 
 // Customer Views
 import CreateCustomerView from "../views/customer/CreateCustomerView.vue";
@@ -188,7 +190,7 @@ const routes = [
   {
     path: "/admin/khachhang",
     name: "admin-customers",
-    component: CustomerView,
+    component: CustomerViews,
     meta: { requiresAuth: true, adminOnly: true },
   },
   {

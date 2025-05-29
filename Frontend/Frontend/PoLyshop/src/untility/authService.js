@@ -10,8 +10,8 @@ export const authState = {
 
 // The API endpoints for authentication
 const AUTH_ENDPOINTS = {
-  REGISTER: "/api/Auth/register",
-  LOGIN: "/api/Auth/login",
+  REGISTER: "https://localhost:7055/api/Auth/register",
+  LOGIN: "https://localhost:7055/api/Auth/login",
 };
 
 // Initialize auth state from storage

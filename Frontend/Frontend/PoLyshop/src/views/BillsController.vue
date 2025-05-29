@@ -1,6 +1,7 @@
 <script setup>
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import bootstrap from "@/utils/bootstrapHelper";
+import { productService } from "@/services/productService";
 
 // Search and suggestions state
 const search = ref("");
@@ -23,16 +24,11 @@ const discountAmount = ref(0);
 const orderNote = ref("");
 const currentOrderId = ref("ĐH" + new Date().getTime().toString().slice(-6));
 
-// Sample data for development
-const categories = [
-  { id: "all", name: "Tất cả" },
-  { id: "tshirt", name: "Áo thun" },
-  { id: "shirt", name: "Áo sơ mi" },
-  { id: "pants", name: "Quần" },
-  { id: "dress", name: "Váy/Đầm" },
-  { id: "accessories", name: "Phụ kiện" },
-];
+// Replace static categories and products with refs
+const categories = ref([{ id: "all", name: "Tất cả" }]);
+const products = ref([]);
 
+// Sample data for development
 const sampleProducts = [
   {
     id: 1,
@@ -156,12 +152,7 @@ const sampleCustomers = [
 
 // Computed properties
 const filteredProducts = computed(() => {
-  if (activeTab.value === "all") {
-    return sampleProducts;
-  }
-  return sampleProducts.filter(
-    (product) => product.category === activeTab.value
-  );
+  return products.value;
 });
 
 const subtotal = computed(() => {
@@ -206,12 +197,12 @@ const fetchProducts = () => {
 
   fetchTimeout = setTimeout(() => {
     try {
-      // For development - using sample data
       const searchTerm = search.value.toLowerCase();
-      suggestions.value = sampleProducts.filter((product) =>
+      suggestions.value = products.value.filter((product) =>
         product.productName.toLowerCase().includes(searchTerm)
       );
-    } catch {
+    } catch (error) {
+      console.error("Error searching products:", error);
       suggestions.value = [];
     }
   }, 300);
@@ -236,14 +227,22 @@ const fetchCustomers = () => {
 };
 
 const selectProduct = (product) => {
+  if (product.stock <= 0) {
+    alert('Sản phẩm đã hết hàng!');
+    return;
+  }
+
   search.value = "";
   showSuggestions.value = false;
   suggestions.value = [];
 
-  // Check if product already in cart
   const existingItem = cart.value.find((item) => item.id === product.id);
   if (existingItem) {
-    existingItem.quantity += 1;
+    if (existingItem.quantity < product.stock) {
+      existingItem.quantity += 1;
+    } else {
+      alert('Số lượng đặt hàng đã đạt giới hạn tồn kho!');
+    }
   } else {
     cart.value.push({
       id: product.id,
@@ -251,6 +250,7 @@ const selectProduct = (product) => {
       price: product.price,
       quantity: 1,
       image: product.image,
+      maxStock: product.stock
     });
   }
 };
@@ -279,8 +279,45 @@ const removeItem = (index) => {
   cart.value.splice(index, 1);
 };
 
-const selectCategory = (category) => {
-  activeTab.value = category;
+const selectCategory = async (categoryId) => {
+  activeTab.value = categoryId;
+  try {
+    if (categoryId === "all") {
+      const productsData = await productService.getProducts();
+      products.value = productsData.map((product) => ({
+        id: product.productId,
+        productName: product.productName,
+        price: product.price,
+        category: product.categoryId,
+        status: product.status,
+        stock: product.stockQuantity,
+        image: product.image || "default-product-image.jpg",
+        categoryName: product.categoryName,
+        trademark: product.trademark,
+        materialName: product.materialName,
+        sizeName: product.sizeName,
+        colorName: product.colorName,
+      }));
+    } else {
+      const productsData = await productService.getProductsByCategory(categoryId);
+      products.value = productsData.$values.map((product) => ({
+        id: product.productId,
+        productName: product.productName,
+        price: product.price,
+        category: product.categoryId,
+        status: product.status,
+        stock: product.stockQuantity,
+        image: product.image || "default-product-image.jpg",
+        categoryName: product.categoryName,
+        trademark: product.trademark,
+        materialName: product.materialName,
+        sizeName: product.sizeName,
+        colorName: product.colorName,
+      }));
+    }
+  } catch (error) {
+    console.error("Error fetching products:", error);
+  }
 };
 
 const openNewCustomerModal = () => {
@@ -312,11 +349,25 @@ const formatCurrency = (value) => {
 
 const processPayment = () => {
   if (cart.value.length === 0) {
-    alert("Vui lòng thêm sản phẩm vào giỏ hàng");
+    showToast("Vui lòng thêm sản phẩm vào giỏ hàng", "warning");
     return;
   }
 
-  // In a real application, this would send data to your backend
+  if (paymentMethod.value === "cash") {
+    if (!amountReceived.value || amountReceived.value <= 0) {
+      showToast("Vui lòng nhập số tiền khách đưa!", "warning");
+      return;
+    }
+    if (amountReceived.value < grandTotal.value) {
+      showToast("Số tiền khách đưa phải lớn hơn hoặc bằng tổng thanh toán!", "warning");
+      return;
+    }
+  }
+
+  if (!confirm("Xác nhận đã thanh toán và tạo hóa đơn cho đơn hàng này?")) {
+    return;
+  }
+
   const order = {
     orderId: currentOrderId.value,
     customer: customer.value,
@@ -334,12 +385,42 @@ const processPayment = () => {
 
   console.log("Processing order:", order);
 
-  // Show success modal
   const modal = new bootstrap.Modal(
     document.getElementById("paymentSuccessModal")
   );
   modal.show();
+
+  showToast("Thanh toán thành công!", "success");
 };
+
+// Toast helper
+function showToast(message, type = "info") {
+  // Remove existing toast if any
+  const old = document.getElementById("poly-toast");
+  if (old) old.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "poly-toast";
+  toast.className = `toast align-items-center text-bg-${type} border-0 position-fixed top-0 end-0 m-3`;
+  toast.style.zIndex = 2000;
+  toast.setAttribute("role", "alert");
+  toast.setAttribute("aria-live", "assertive");
+  toast.setAttribute("aria-atomic", "true");
+  toast.innerHTML = `
+    <div class="d-flex">
+      <div class="toast-body">${message}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  `;
+  document.body.appendChild(toast);
+
+  const bsToast = new bootstrap.Toast(toast, { delay: 2500 });
+  bsToast.show();
+
+  toast.addEventListener("hidden.bs.toast", () => {
+    toast.remove();
+  });
+}
 
 const startNewOrder = () => {
   // Reset all order data
@@ -363,6 +444,42 @@ const startNewOrder = () => {
   // Switch view to product grid
   showProductGrid.value = true;
 };
+
+const fetchInitialData = async () => {
+  try {
+    // Fetch categories
+    const categoriesData = await productService.getCategories();
+    categories.value = [
+      { id: "all", name: "Tất cả" },
+      ...categoriesData.$values.map((cat) => ({
+        id: cat.categoryId,
+        name: cat.categoryName,
+      })),
+    ];
+    // Fetch all products
+    const productsData = await productService.getProducts();
+    products.value = productsData.map((product) => ({
+      id: product.productId,
+      productName: product.productName,
+      price: product.price,
+      category: product.categoryId,
+      status: product.status,
+      stock: product.stockQuantity,
+      image: product.image || "default-product-image.jpg",
+      categoryName: product.categoryName,
+      trademark: product.trademark,
+      materialName: product.materialName,
+      sizeName: product.sizeName,
+      colorName: product.colorName,
+    }));
+  } catch (error) {
+    console.error("Error fetching initial data:", error);
+  }
+};
+
+onMounted(() => {
+  fetchInitialData();
+});
 </script>
 
 <template>
@@ -376,32 +493,17 @@ const startNewOrder = () => {
       <!-- Left side: Products selection -->
       <div class="col-lg-8 mb-4">
         <div class="card shadow-sm">
-          <div
-            class="card-header bg-white d-flex justify-content-between align-items-center py-3"
-          >
+          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
             <ul class="nav nav-pills">
-              <li
-                class="nav-item"
-                v-for="category in categories"
-                :key="category.id"
-              >
-                <a
-                  class="nav-link"
-                  :class="{ active: activeTab === category.id }"
-                  href="#"
-                  @click.prevent="selectCategory(category.id)"
-                >
+              <li class="nav-item" v-for="category in categories" :key="category.id">
+                <a class="nav-link" :class="{ active: activeTab === category.id }" href="#"
+                  @click.prevent="selectCategory(category.id)">
                   {{ category.name }}
                 </a>
               </li>
             </ul>
             <div class="form-check form-switch">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                v-model="showProductGrid"
-                id="viewToggle"
-              />
+              <input class="form-check-input" type="checkbox" v-model="showProductGrid" id="viewToggle" />
               <label class="form-check-label" for="viewToggle">
                 {{ showProductGrid ? "Hiển thị ô lưới" : "Hiển thị danh sách" }}
               </label>
@@ -414,29 +516,13 @@ const startNewOrder = () => {
               <span class="input-group-text bg-white border-end-0">
                 <i class="bi bi-search"></i>
               </span>
-              <input
-                type="text"
-                class="form-control border-start-0"
-                placeholder="Tìm kiếm sản phẩm theo tên..."
-                v-model="search"
-                @focus="showSuggestions = true"
-                @input="fetchProducts"
-                @blur="hideSuggestions"
-              />
-              <ul
-                v-if="showSuggestions && suggestions.length"
-                class="list-group position-absolute search-suggestions"
-              >
-                <li
-                  v-for="product in suggestions"
-                  :key="product.id"
+              <input type="text" class="form-control border-start-0" placeholder="Tìm kiếm sản phẩm theo tên..."
+                v-model="search" @focus="showSuggestions = true" @input="fetchProducts" @blur="hideSuggestions" />
+              <ul v-if="showSuggestions && suggestions.length" class="list-group position-absolute search-suggestions">
+                <li v-for="product in suggestions" :key="product.id"
                   class="list-group-item list-group-item-action d-flex align-items-center"
-                  @mousedown.prevent="selectProduct(product)"
-                >
-                  <img
-                    :src="product.image"
-                    class="product-suggestion-img me-2"
-                  />
+                  @mousedown.prevent="selectProduct(product)">
+                  <img :src="product.image" class="product-suggestion-img me-2" />
                   <div>
                     <div>{{ product.productName }}</div>
                     <div class="small text-muted">
@@ -448,31 +534,26 @@ const startNewOrder = () => {
             </div>
 
             <!-- Product grid view -->
-            <div
-              v-if="showProductGrid"
-              class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3"
-            >
-              <div
-                v-for="product in filteredProducts"
-                :key="product.id"
-                class="col"
-              >
+            <div v-if="showProductGrid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+              <div v-for="product in filteredProducts" :key="product.id" class="col">
                 <div
                   class="card h-100 product-card"
-                  @click="selectProduct(product)"
+                  :class="{ 'opacity-50': !product.status, 'pointer-events-none': !product.status }"
+                  @click="product.status && selectProduct(product)"
+                  :style="!product.status ? 'cursor: not-allowed;' : ''"
                 >
-                  <img
-                    :src="product.image"
-                    class="card-img-top product-img"
-                    :alt="product.productName"
-                  />
+                  <img :src="product.image" class="card-img-top product-img" :alt="product.productName" />
                   <div class="card-body">
                     <h6 class="card-title product-title">
                       {{ product.productName }}
                     </h6>
                     <div class="price">{{ formatCurrency(product.price) }}</div>
+                    <div> Size {{ product.sizeName }}</div>
                     <div class="text-muted small">
                       Còn {{ product.stock }} sản phẩm
+                    </div>
+                    <div v-if="!product.status" class="mt-2">
+                      <span class="badge bg-secondary">Ngưng bán</span>
                     </div>
                   </div>
                 </div>
@@ -497,24 +578,40 @@ const startNewOrder = () => {
                     <td>
                       <img :src="product.image" class="product-list-img" />
                     </td>
-                    <td>{{ product.productName }}</td>
+                    <td>
+                        {{ product.productName }}
+                        <small>
+                          <span
+                          v-if="product.status"
+                          class="badge bg-success"
+                          >
+                          Đang bán
+                          </span>
+                          <span
+                          v-else
+                          class="badge bg-secondary"
+                          >
+                          Ngưng bán
+                          </span>
+                        </small>
+                    </td>
                     <td>
                       <span class="badge bg-light text-dark">
                         {{
-                          categories.find((c) => c.id === product.category)
-                            ?.name || product.category
+                          product.categoryName
                         }}
                       </span>
                     </td>
                     <td>{{ formatCurrency(product.price) }}</td>
                     <td>{{ product.stock }}</td>
                     <td>
-                      <button
+                        <button
                         class="btn btn-sm btn-primary"
                         @click="selectProduct(product)"
-                      >
+                        :disabled="!product.status"
+                        >
                         <i class="bi bi-plus-circle"></i> Thêm
-                      </button>
+                        </button>
                     </td>
                   </tr>
                 </tbody>
@@ -530,57 +627,34 @@ const startNewOrder = () => {
           <div class="card-header bg-white py-3">
             <div class="d-flex align-items-center justify-content-between">
               <h5 class="mb-0">Giỏ hàng</h5>
-              <span class="badge bg-primary rounded-pill"
-                >{{ totalItems }} sản phẩm</span
-              >
+              <span class="badge bg-primary rounded-pill">{{ totalItems }} sản phẩm</span>
             </div>
 
             <!-- Customer selection -->
             <div class="mt-3 position-relative">
               <div v-if="!customer" class="input-group">
-                <input
-                  type="text"
-                  class="form-control"
-                  placeholder="Tìm kiếm khách hàng..."
-                  v-model="customerSearch"
-                  @focus="showCustomerSuggestions = true"
-                  @input="fetchCustomers"
-                  @blur="hideCustomerSuggestions"
-                />
-                <button
-                  class="btn btn-outline-secondary"
-                  @click="openNewCustomerModal"
-                >
+                <input type="text" class="form-control" placeholder="Tìm kiếm khách hàng..." v-model="customerSearch"
+                  @focus="showCustomerSuggestions = true" @input="fetchCustomers" @blur="hideCustomerSuggestions" />
+                <button class="btn btn-outline-secondary" @click="openNewCustomerModal">
                   <i class="bi bi-person-plus"></i>
                 </button>
-                <ul
-                  v-if="showCustomerSuggestions && customerSuggestions.length"
-                  class="list-group position-absolute customer-suggestions"
-                >
-                  <li
-                    v-for="c in customerSuggestions"
-                    :key="c.id"
-                    class="list-group-item list-group-item-action"
-                    @mousedown.prevent="selectCustomer(c)"
-                  >
+                <ul v-if="showCustomerSuggestions && customerSuggestions.length"
+                  class="list-group position-absolute customer-suggestions">
+                  <li v-for="c in customerSuggestions" :key="c.id" class="list-group-item list-group-item-action"
+                    @mousedown.prevent="selectCustomer(c)">
                     {{ c.name }} - {{ c.phone }}
                   </li>
                 </ul>
               </div>
-              <div
-                v-else
-                class="selected-customer p-2 border rounded d-flex justify-content-between align-items-center"
-              >
+              <div v-else
+                class="selected-customer p-2 border rounded d-flex justify-content-between align-items-center">
                 <div>
                   <div>
                     <strong>{{ customer.name }}</strong>
                   </div>
                   <div class="text-muted small">{{ customer.phone }}</div>
                 </div>
-                <button
-                  class="btn btn-sm btn-outline-danger"
-                  @click="removeCustomer"
-                >
+                <button class="btn btn-sm btn-outline-danger" @click="removeCustomer">
                   <i class="bi bi-x"></i>
                 </button>
               </div>
@@ -595,43 +669,26 @@ const startNewOrder = () => {
                 <p class="text-muted">Giỏ hàng trống</p>
               </div>
               <ul v-else class="list-group list-group-flush">
-                <li
-                  v-for="(item, index) in cart"
-                  :key="index"
-                  class="list-group-item"
-                >
+                <li v-for="(item, index) in cart" :key="index" class="list-group-item">
                   <div class="d-flex">
                     <img :src="item.image" class="cart-item-img me-2" />
                     <div class="flex-grow-1">
-                      <div
-                        class="d-flex justify-content-between align-items-start"
-                      >
+                      <div class="d-flex justify-content-between align-items-start">
                         <div class="cart-item-name">{{ item.productName }}</div>
-                        <button
-                          class="btn btn-sm text-danger"
-                          @click="removeItem(index)"
-                        >
+                        <button class="btn btn-sm text-danger" @click="removeItem(index)">
                           <i class="bi bi-trash"></i>
                         </button>
                       </div>
-                      <div
-                        class="d-flex align-items-center justify-content-between mt-2"
-                      >
+                      <div class="d-flex align-items-center justify-content-between mt-2">
                         <div class="item-price">
                           {{ formatCurrency(item.price) }}
                         </div>
                         <div class="quantity-controls">
-                          <button
-                            class="btn btn-sm btn-outline-secondary"
-                            @click="decreaseQuantity(item)"
-                          >
+                          <button class="btn btn-sm btn-outline-secondary" @click="decreaseQuantity(item)">
                             -
                           </button>
                           <span class="mx-2">{{ item.quantity }}</span>
-                          <button
-                            class="btn btn-sm btn-outline-secondary"
-                            @click="increaseQuantity(item)"
-                          >
+                          <button class="btn btn-sm btn-outline-secondary" @click="increaseQuantity(item)">
                             +
                           </button>
                         </div>
@@ -663,24 +720,14 @@ const startNewOrder = () => {
                 <div class="row align-items-center mb-1">
                   <div class="col-6">Giảm giá (%):</div>
                   <div class="col-6">
-                    <input
-                      type="number"
-                      class="form-control form-control-sm"
-                      v-model="discountPercent"
-                      min="0"
-                      max="100"
-                    />
+                    <input type="number" class="form-control form-control-sm" v-model="discountPercent" min="0"
+                      max="100" />
                   </div>
                 </div>
                 <div class="row align-items-center">
                   <div class="col-6">Giảm tiền:</div>
                   <div class="col-6">
-                    <input
-                      type="number"
-                      class="form-control form-control-sm"
-                      v-model="discountAmount"
-                      min="0"
-                    />
+                    <input type="number" class="form-control form-control-sm" v-model="discountAmount" min="0" />
                   </div>
                 </div>
                 <div class="row mt-1">
@@ -702,10 +749,7 @@ const startNewOrder = () => {
               <div class="row mb-3 align-items-center">
                 <div class="col-5">Phương thức:</div>
                 <div class="col-7">
-                  <select
-                    class="form-select form-select-sm"
-                    v-model="paymentMethod"
-                  >
+                  <select class="form-select form-select-sm" v-model="paymentMethod">
                     <option value="cash">Tiền mặt</option>
                     <option value="card">Thẻ ATM/Visa</option>
                     <option value="transfer">Chuyển khoản</option>
@@ -715,24 +759,14 @@ const startNewOrder = () => {
                 </div>
               </div>
 
-              <div
-                class="row mb-3 align-items-center"
-                v-if="paymentMethod === 'cash'"
-              >
+              <div class="row mb-3 align-items-center" v-if="paymentMethod === 'cash'">
                 <div class="col-5">Tiền khách đưa:</div>
                 <div class="col-7">
-                  <input
-                    type="number"
-                    class="form-control"
-                    v-model="amountReceived"
-                  />
+                  <input type="number" class="form-control" v-model="amountReceived" />
                 </div>
               </div>
 
-              <div
-                class="row mb-3"
-                v-if="paymentMethod === 'cash' && amountReceived > 0"
-              >
+              <div class="row mb-3" v-if="paymentMethod === 'cash' && amountReceived > 0">
                 <div class="col-5">Tiền thừa:</div>
                 <div class="col-7 text-end fw-bold">
                   {{ formatCurrency(changeAmount) }}
@@ -741,20 +775,12 @@ const startNewOrder = () => {
 
               <div class="mb-3">
                 <label class="form-label small">Ghi chú đơn hàng</label>
-                <textarea
-                  class="form-control form-control-sm"
-                  v-model="orderNote"
-                  rows="2"
-                ></textarea>
+                <textarea class="form-control form-control-sm" v-model="orderNote" rows="2"></textarea>
               </div>
 
               <!-- Checkout button -->
               <div class="d-grid gap-2">
-                <button
-                  class="btn btn-primary btn-lg"
-                  @click="processPayment"
-                  :disabled="cart.length === 0"
-                >
+                <button class="btn btn-primary btn-lg" @click="processPayment" :disabled="cart.length === 0">
                   <i class="bi bi-cash-stack me-2"></i> Thanh toán
                 </button>
               </div>
@@ -765,24 +791,14 @@ const startNewOrder = () => {
     </div>
 
     <!-- Payment Success Modal -->
-    <div
-      class="modal fade"
-      id="paymentSuccessModal"
-      tabindex="-1"
-      aria-hidden="true"
-    >
+    <div class="modal fade" id="paymentSuccessModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header bg-success text-white">
             <h5 class="modal-title">
               <i class="bi bi-check-circle me-2"></i> Thanh toán thành công
             </h5>
-            <button
-              type="button"
-              class="btn-close btn-close-white"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body text-center py-4">
             <i class="bi bi-emoji-smile display-1 text-success mb-3"></i>
@@ -794,27 +810,19 @@ const startNewOrder = () => {
                 paymentMethod === "cash"
                   ? "Tiền mặt"
                   : paymentMethod === "card"
-                  ? "Thẻ ATM/Visa"
-                  : paymentMethod === "transfer"
-                  ? "Chuyển khoản"
-                  : paymentMethod === "momo"
-                  ? "Ví MoMo"
-                  : "VNPay"
+                    ? "Thẻ ATM/Visa"
+                    : paymentMethod === "transfer"
+                      ? "Chuyển khoản"
+                      : paymentMethod === "momo"
+                        ? "Ví MoMo"
+                        : "VNPay"
               }}
             </p>
             <div class="d-flex justify-content-center gap-2">
-              <button
-                type="button"
-                class="btn btn-secondary"
-                data-bs-dismiss="modal"
-              >
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                 <i class="bi bi-printer"></i> In hóa đơn
               </button>
-              <button
-                type="button"
-                class="btn btn-primary"
-                @click="startNewOrder"
-              >
+              <button type="button" class="btn btn-primary" @click="startNewOrder">
                 <i class="bi bi-plus-circle"></i> Tạo đơn mới
               </button>
             </div>
@@ -824,35 +832,21 @@ const startNewOrder = () => {
     </div>
 
     <!-- New Customer Modal -->
-    <div
-      class="modal fade"
-      id="newCustomerModal"
-      tabindex="-1"
-      aria-hidden="true"
-    >
+    <div class="modal fade" id="newCustomerModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Thêm khách hàng mới</h5>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
             <form>
               <div class="mb-3">
-                <label class="form-label"
-                  >Họ và tên <span class="text-danger">*</span></label
-                >
+                <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" required />
               </div>
               <div class="mb-3">
-                <label class="form-label"
-                  >Số điện thoại <span class="text-danger">*</span></label
-                >
+                <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
                 <input type="tel" class="form-control" required />
               </div>
               <div class="mb-3">
@@ -866,18 +860,10 @@ const startNewOrder = () => {
             </form>
           </div>
           <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               Hủy
             </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              data-bs-dismiss="modal"
-            >
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
               Lưu khách hàng
             </button>
           </div>

@@ -11,11 +11,12 @@ builder.Services.AddDbContext<DbContextShop>(options =>
     options.UseSqlServer(connectionString)
 );
 
+// Add this before `builder.Build()`
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowVueApp", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // địa chỉ chạy Vite
+        policy.WithOrigins("http://localhost:5173") // Đúng origin frontend của bạn
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -42,7 +43,7 @@ if (app.Environment.IsDevelopment())
 }
 
 
-app.UseCors("AllowVueApp");
+app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();

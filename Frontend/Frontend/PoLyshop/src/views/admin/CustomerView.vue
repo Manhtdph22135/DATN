@@ -60,7 +60,7 @@
         <table class="admin-table">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>STT</th>
               <th>Họ và tên</th>
               <th>Email</th>
               <th>Số điện thoại</th>
@@ -71,17 +71,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="customer in filteredCustomers" :key="customer.id">
-              <td>{{ customer.id }}</td>
+            <tr v-for="(customer, index) in filteredCustomers.$values" :key="customer.id">
+              <td>{{ index + 1 }}</td>
               <td>{{ customer.fullName }}</td>
               <td>{{ customer.email }}</td>
               <td>{{ customer.phone }}</td>
               <td>
                 <span
                   class="badge"
-                  :class="getMembershipClass(customer.membership)"
+                  :class="getMembershipClass(customer.rankMember)"
                 >
-                  {{ getMembershipText(customer.membership) }}
+                  {{ getMembershipText(customer.rankMember) }}
                 </span>
               </td>
               <td>{{ customer.orderCount }} đơn</td>
@@ -442,7 +442,7 @@ import * as bootstrap from "bootstrap";
 
 // Create a custom instance of axios for this component
 const customerApi = axios.create({
-  baseURL: "", // Empty baseURL to prevent automatic prefixing
+  baseURL: "https://localhost:7055/api",
 });
 
 export default {
@@ -475,17 +475,9 @@ export default {
     const fetchCustomers = async () => {
       try {
         loading.value = true;
-
-        // In development mode, use sample data
-        setTimeout(() => {
-          customers.value = sampleCustomers;
-          loading.value = false;
-        }, 500);
-
-        // NOTE: Real API implementation will be added later
-        // Example of future implementation:
-        // const response = await axios.get('/api/customers');
-        // customers.value = response.data;
+        const response = await customerApi.get("/Customer");
+        customers.value = response.data;
+        loading.value = false;
       } catch (err) {
         error.value = "Không thể tải dữ liệu khách hàng: " + err.message;
         loading.value = false;
@@ -500,9 +492,9 @@ export default {
         const term = searchTerm.value.toLowerCase();
         result = result.filter(
           (customer) =>
-            customer.fullName.toLowerCase().includes(term) ||
-            customer.email.toLowerCase().includes(term) ||
-            customer.phone.includes(term)
+            (customer.fullName && customer.fullName.toLowerCase().includes(term)) ||
+            (customer.email && customer.email.toLowerCase().includes(term)) ||
+            (customer.phone && customer.phone.includes(term))
         );
       }
 
@@ -578,11 +570,8 @@ export default {
     const toggleCustomerStatus = async (customer) => {
       try {
         const newStatus = customer.status === "active" ? "inactive" : "active";
+        await customerApi.patch(`/Customer/${customer.id}/status`, { status: newStatus });
 
-        // Uncomment when API is ready
-        // await axios.patch(`/api/customers/${customer.id}/status`, { status: newStatus });
-
-        // For development
         const index = customers.value.findIndex((c) => c.id === customer.id);
         if (index !== -1) {
           customers.value[index].status = newStatus;
@@ -596,10 +585,7 @@ export default {
     const saveCustomer = async () => {
       try {
         if (isEditing.value) {
-          // Uncomment when API is ready
-          // await axios.put(`/api/customers/${currentCustomer.value.id}`, currentCustomer.value);
-
-          // For development
+          await customerApi.put(`/Customer/${currentCustomer.value.id}`, currentCustomer.value);
           const index = customers.value.findIndex(
             (c) => c.id === currentCustomer.value.id
           );
@@ -607,17 +593,8 @@ export default {
             customers.value[index] = { ...currentCustomer.value };
           }
         } else {
-          // Uncomment when API is ready
-          // const response = await axios.post('/api/customers', currentCustomer.value);
-          // customers.value.push(response.data);
-
-          // For development
-          const newId = Math.max(0, ...customers.value.map((c) => c.id)) + 1;
-          customers.value.push({
-            ...currentCustomer.value,
-            id: newId,
-            avatar: "https://placehold.co/150x150?text=User", // Default avatar
-          });
+          const response = await customerApi.post('/Customer', currentCustomer.value);
+          customers.value.push(response.data);
         }
 
         // Close the modal
@@ -649,11 +626,11 @@ export default {
       switch (membership) {
         case "bronze":
           return "bg-bronze";
-        case "silver":
+        case "Silver":
           return "bg-silver";
-        case "gold":
+        case "Gold":
           return "bg-gold";
-        case "platinum":
+        case "Platinum":
           return "bg-platinum";
         default:
           return "bg-secondary";
@@ -662,13 +639,13 @@ export default {
 
     const getMembershipText = (membership) => {
       switch (membership) {
-        case "bronze":
+        case "Bronze":
           return "Đồng";
-        case "silver":
+        case "Silver":
           return "Bạc";
-        case "gold":
+        case "Gold":
           return "Vàng";
-        case "platinum":
+        case "Platinum":
           return "Bạch Kim";
         default:
           return "Không xác định";

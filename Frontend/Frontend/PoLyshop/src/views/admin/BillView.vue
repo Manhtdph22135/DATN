@@ -48,8 +48,7 @@
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="paid">Đã thanh toán</option>
-            <option value="pending">Chờ thanh toán</option>
-            <option value="cancelled">Đã hủy</option>
+            <option value="unpaid">Chờ thanh toán</option>
           </select>
         </div>
       </div>
@@ -252,7 +251,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(item, index) in selectedBill.items" :key="index">
+                  <tr v-for="(item, index) in selectedBill.items.$values" :key="index">
                     <td>
                       <div class="product-item">
                         <img
@@ -345,9 +344,8 @@
               <div class="mb-3">
                 <label class="form-label">Trạng thái</label>
                 <select class="form-select" v-model="editingBill.status">
-                  <option value="pending">Chờ thanh toán</option>
+                  <option value="unpaid">Chờ thanh toán</option>
                   <option value="paid">Đã thanh toán</option>
-                  <option value="cancelled">Đã hủy</option>
                 </select>
               </div>
 
@@ -452,183 +450,13 @@ export default {
       status: "all",
     });
 
-    // Sample data for development
-    const sampleBills = [
-      {
-        id: 1,
-        billId: "HD00001",
-        customerName: "Nguyễn Văn An",
-        customerPhone: "0901234567",
-        customerEmail: "nguyenvanan@gmail.com",
-        customerAddress: "123 Nguyễn Huệ, Q1, TPHCM",
-        subtotal: 750000,
-        discount: 0,
-        tax: 60000,
-        total: 810000,
-        paymentMethod: "cash",
-        status: "paid",
-        createdAt: "2023-10-15T09:30:00Z",
-        paymentDate: "2023-10-15T09:35:00Z",
-        note: "",
-        items: [
-          {
-            id: 1,
-            name: "Áo thun nam basic",
-            price: 250000,
-            quantity: 2,
-            image: "https://dosi-in.com/images/detailed/41/lnc_tr%C6%A1n_3.png",
-            color: "Đen",
-            size: "L",
-          },
-          {
-            id: 3,
-            name: "Áo sơ mi Minimal",
-            price: 250000,
-            quantity: 1,
-            image: "https://product.hstatic.net/1000360022/product/ao-so-mi-linen-nam-tay-ngan-minimal-collection-form-regular__7__96ae3e35f57049438841a8a8459c336a.jpg",
-            color: "Trắng",
-            size: "M",
-          },
-        ],
-      },
-      {
-        id: 2,
-        billId: "HD00002",
-        customerName: "Trần Thị Bình",
-        customerPhone: "0909876543",
-        customerEmail: "tranthibinh@gmail.com",
-        customerAddress: "456 Lê Lợi, Q3, TPHCM",
-        subtotal: 450000,
-        discount: 45000,
-        tax: 36000,
-        total: 441000,
-        paymentMethod: "card",
-        status: "paid",
-        createdAt: "2023-10-16T14:20:00Z",
-        paymentDate: "2023-10-16T14:25:00Z",
-        note: "Khách hàng VIP",
-        items: [
-          {
-            id: 2,
-            name: "Quần jeans nam slim fit",
-            price: 450000,
-            quantity: 1,
-            image: "https://vn-test-11.slatic.net/p/9bb2a97169e7673623ade19ccafeaff3.jpg",
-            color: "Xanh đậm",
-            size: "32",
-          },
-        ],
-      },
-      {
-        id: 3,
-        billId: "HD00003",
-        customerName: "Lê Văn Cường",
-        customerPhone: "0908765432",
-        customerEmail: "levancuong@gmail.com",
-        customerAddress: "789 Cách Mạng Tháng 8, Q10, TPHCM",
-        subtotal: 550000,
-        discount: 0,
-        tax: 44000,
-        total: 594000,
-        paymentMethod: "momo",
-        status: "pending",
-        createdAt: "2023-10-17T16:45:00Z",
-        paymentDate: null,
-        note: "",
-        items: [
-          {
-            id: 4,
-            name: "Váy liền thân",
-            price: 550000,
-            quantity: 1,
-            image: "https://file.hstatic.net/200000503583/file/mau-vay-lien-than-dep-cardina__20_.jpg_b05b34e6d8e540d693df036aca23fbbd.jpg",
-            coimage: "https://placehold.co/80x80?text=Dress",lor: "Xanh lá",
-            size: "S",
-          },
-        ],
-      },
-      {
-        id: 4,
-        billId: "HD00004",
-        customerName: "Phạm Thị Dung",
-        customerPhone: "0907654321",
-        customerEmail: "phamthidung@gmail.com",
-        customerAddress: "101 Võ Văn Tần, Q3, TPHCM",
-        subtotal: 830000,
-        discount: 0,
-        tax: 66400,
-        total: 896400,
-        paymentMethod: "transfer",
-        status: "cancelled",
-        createdAt: "2023-10-18T11:15:00Z",
-        paymentDate: null,
-        note: "Khách hàng đổi hàng",
-        items: [
-          {
-            id: 5,
-            name: "Áo polo nam",
-            price: 320000,
-            quantity: 1,
-            image: "https://4men.com.vn/thumbs/2022/08/ao-polo-slimfit-stripe-color-po083-mau-den-21295-p.jpg",
-            color: "Trắng",
-            size: "XL",
-          },
-          {
-            id: 8,
-            name: "Áo khoác denim",
-            price: 510000,
-            quantity: 1,
-            image: "https://product.hstatic.net/1000360022/product/z3907027303949_e9fb89295d4938b8c37bec9aecb06c46_c26702be229b4874a4b17bfc711825b9.jpg",
-            color: "Xanh nhạt",
-            size: "L",
-          },
-        ],
-      },
-      {
-        id: 5,
-        billId: "HD00005",
-        customerName: "Trịnh Văn Hùng",
-        customerPhone: "0906543210",
-        customerEmail: "trinhvanhung@gmail.com",
-        customerAddress: "254 Nguyễn Trãi, Q1, TPHCM",
-        subtotal: 900000,
-        discount: 90000,
-        tax: 72000,
-        total: 882000,
-        paymentMethod: "vnpay",
-        status: "paid",
-        createdAt: "2023-10-19T13:40:00Z",
-        paymentDate: "2023-10-19T13:45:00Z",
-        note: "",
-        items: [
-          {
-            id: 2,
-            name: "Quần jeans nam slim fit",
-            price: 450000,
-            quantity: 2,
-            image: "https://vn-test-11.slatic.net/p/9bb2a97169e7673623ade19ccafeaff3.jpg",
-            color: "Xanh đậm",
-            size: "33",
-          },
-        ],
-      },
-    ];
-
     // Fetch bills
     const fetchBills = async () => {
       try {
         loading.value = true;
-
-        // For development with sample data
-        setTimeout(() => {
-          bills.value = sampleBills;
-          loading.value = false;
-        }, 500);
-
-        // For production with API
-        // const response = await axios.get('/api/admin/bills')
-        // bills.value = response.data
-        // loading.value = false
+        const response = await axios.get("https://localhost:7055/api/Bills/hoadon-full");
+        bills.value = response.data.$values;
+        loading.value = false;
       } catch (error) {
         console.error("Error fetching bills:", error);
         loading.value = false;
@@ -772,10 +600,8 @@ export default {
       switch (status) {
         case "paid":
           return "Đã thanh toán";
-        case "pending":
+        case "unpaid":
           return "Chờ thanh toán";
-        case "cancelled":
-          return "Đã hủy";
         default:
           return "Không xác định";
       }
@@ -785,10 +611,8 @@ export default {
       switch (status) {
         case "paid":
           return "status-success";
-        case "pending":
+        case "unpaid":
           return "status-warning";
-        case "cancelled":
-          return "status-danger";
         default:
           return "status-secondary";
       }
