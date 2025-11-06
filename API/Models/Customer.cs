@@ -45,8 +45,6 @@ public partial class Customer
 
     [Column("RoleID")]
     public int RoleId { get; set; }
-
-    [InverseProperty("Customer")]
     public virtual ICollection<Bill> Bills { get; set; } = new List<Bill>();
 
     [ForeignKey("RoleId")]

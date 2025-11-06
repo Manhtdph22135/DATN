@@ -45,9 +45,11 @@ public partial class DbContextShop : DbContext
     public virtual DbSet<Staff> Staffs { get; set; }
 
     public virtual DbSet<Transport> Transports { get; set; }
+    public virtual DbSet<Carts> Carts { get; set; }
+    public virtual DbSet<CartDetails> CartDetails { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Data Source=localhost;Initial Catalog=Duantotnghiep;Integrated Security=True;TrustServerCertificate=True");
+        => optionsBuilder.UseSqlServer("Data Source=localhost;Initial Catalog=DATN;Integrated Security=True;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,19 +70,27 @@ public partial class DbContextShop : DbContext
             entity.HasKey(e => e.BillId).HasName("PK__Bills__11F2FC4A635723A7");
 
             entity.Property(e => e.CreateAt).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.Status).HasDefaultValue(true);
 
-            entity.HasOne(d => d.Customer).WithMany(p => p.Bills)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK__Bills__CustomerI__619B8048");
+            modelBuilder.Entity<Bill>(e =>
+            {
+                e.HasOne(b => b.Customer)
+                    .WithMany(c => c.Bills)
+                    .HasForeignKey(b => b.CustomerId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .HasConstraintName("FK_Bills_Customers");
 
-            entity.HasOne(d => d.Staff).WithMany(p => p.Bills)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK__Bills__StaffID__60A75C0F");
+                e.HasOne(b => b.Staff)
+                    .WithMany(s => s.Bills)
+                    .HasForeignKey(b => b.StaffId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .HasConstraintName("FK_Bills_Staffs");
 
-            entity.HasOne(d => d.Transport).WithMany(p => p.Bills)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK__Bills__Transport__628FA481");
+                e.HasOne(b => b.Transport)
+                    .WithMany(t => t.Bills)
+                    .HasForeignKey(b => b.TransportId)
+                    .OnDelete(DeleteBehavior.SetNull)
+                    .HasConstraintName("FK_Bills_Transports");
+            });
         });
 
         modelBuilder.Entity<BillDetail>(entity =>
@@ -195,6 +205,32 @@ public partial class DbContextShop : DbContext
             entity.HasKey(e => e.TransportId).HasName("PK__Transpor__19E9A17DB524B435");
         });
 
+        modelBuilder.Entity<Carts>(entity =>
+        {
+            entity.HasKey(e => e.CartID).HasName("PK__Carts__5B65BF97D8A6F2E3");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.Status).HasDefaultValue(0);
+            entity.HasOne<Customer>()
+                .WithMany()
+                .HasForeignKey(e => e.CustomerID)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK__Carts__CustomerID__3B75D760");
+        });
+        modelBuilder.Entity<CartDetails>(entity =>
+        {
+            entity.HasKey(e => e.CartDetailID).HasName("PK__CartDeta__4E3E04AD8D7C2F1E");
+            entity.Property(e => e.Quantity).HasDefaultValue(1);
+            entity.HasOne(d => d.Cart)
+                .WithMany(p => p.Details)
+                .HasForeignKey(d => d.CartID)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK__CartDeta__CartID__3C69FB99");
+            entity.HasOne<ProductDetail>()
+                .WithMany()
+                .HasForeignKey(d => d.ProductDetailID)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK__CartDeta__ProductDeta__3D5E1FD2");
+        });
         OnModelCreatingPartial(modelBuilder);
     }
 

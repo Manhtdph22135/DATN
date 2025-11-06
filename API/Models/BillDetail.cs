@@ -13,24 +13,25 @@ public partial class BillDetail
     public int BillDetailId { get; set; }
 
     [Column("BillID")]
-    public int? BillId { get; set; }
+    public int BillId { get; set; }                      // required
 
     [Column("ProductDetailID")]
-    public int? ProductDetailId { get; set; }
+    public int ProductDetailId { get; set; }             // required
 
+    [Range(1, int.MaxValue)]
     public int Quantity { get; set; }
 
-    [Column(TypeName = "decimal(18, 2)")]
+    [Column(TypeName = "decimal(18,2)")]
     public decimal UnitPrice { get; set; }
 
-    [Column(TypeName = "decimal(29, 2)")]
-    public decimal? Total { get; set; }
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal Total { get; set; }                   // UnitPrice * Quantity
 
-    [ForeignKey("BillId")]
-    [InverseProperty("BillDetails")]
-    public virtual Bill? Bill { get; set; }
+    [ForeignKey(nameof(BillId))]
+    [InverseProperty(nameof(Bill.BillDetails))]
+    public virtual Bill Bill { get; set; } = default!;
 
-    [ForeignKey("ProductDetailId")]
-    [InverseProperty("BillDetails")]
-    public virtual ProductDetail? ProductDetail { get; set; }
+    [ForeignKey(nameof(ProductDetailId))]
+    [InverseProperty(nameof(ProductDetail.BillDetails))]
+    public virtual ProductDetail ProductDetail { get; set; } = default!;
 }

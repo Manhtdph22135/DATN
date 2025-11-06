@@ -24,6 +24,7 @@ namespace API.Controllers.Products
                 join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
                 join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
                 join co in _contextShop.Colors on pd.ColorId equals co.ColorId
+                //where p.Status == false ? 
                 select new
                 {
                     p.ProductId,

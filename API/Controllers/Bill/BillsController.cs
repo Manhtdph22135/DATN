@@ -49,7 +49,7 @@ namespace API.Controllers.Bill
                                 Quantity = bd.Quantity,
                                 UnitPrice = bd.UnitPrice,
                                 Total = (decimal)bd.Total,
-                                Status = b.Status == false ? 0 : 1,
+                                Status = b.PaidAt == default(DateTime) ? 0 : 1,
                                 PaymentMethod = b.PaymentMethod,
                                 Size = sz.SizeName,
                                 Color = clr.ColorName,
@@ -102,7 +102,7 @@ namespace API.Controllers.Bill
                             Quantity = bd.Quantity,
                             UnitPrice = bd.UnitPrice,
                             Total = (decimal)bd.Total,
-                            Status = b.Status == false ? 0 : 1,
+                            Status = b.PaidAt == default(DateTime) ? 0 : 1,
                             Size = sz.SizeName,
                             Color = clr.ColorName,
                             Material = mat.MaterialName
@@ -134,7 +134,7 @@ namespace API.Controllers.Bill
                     Quantity = bd.Quantity,
                     UnitPrice = bd.UnitPrice,
                     Total = (decimal)bd.Total,
-                    Status = b.Status == false ? 0 : 1
+                    Status = b.PaidAt == default(DateTime) ? 0 : 1
                 };
             return await query.ToListAsync();
         }
@@ -227,7 +227,7 @@ namespace API.Controllers.Bill
             // Tính TotalAmount = Tổng Total trong BillDetail + Cost trong Transport
             decimal totalBillDetail = await _contextShop.BillDetails
                 .Where(bd => bd.BillId == model.CustomerId) // Giả sử CustomerId chính là BillId
-                .SumAsync(bd => bd.Total ?? 0); // Nếu Total là null, lấy 0
+                .SumAsync(bd => (decimal?)(bd.Total) ?? 0m); // Nếu Total là null, lấy 0m
 
             decimal transportCost = model.TransportId != null
                 ? await _contextShop.Transports
@@ -245,7 +245,6 @@ namespace API.Controllers.Bill
                 CustomerId = model.CustomerId,
                 TransportId = model.TransportId,
                 CreateAt = DateTime.Now,
-                Status = false,
                 TotalAmount = model.TotalAmount
             };
 
@@ -283,22 +282,24 @@ namespace API.Controllers.Bill
                                join c in _contextShop.Customers on b.CustomerId equals c.CustomerId
                                join s in _contextShop.Staffs on b.StaffId equals s.StaffId into staffJoin
                                from s in staffJoin.DefaultIfEmpty()
+                               orderby b.CreateAt descending 
                                select new
                                {
                                    id = b.BillId,
-                                   billId = "HD" + b.BillId.ToString("D5"),
+                                   billId = b.BillId,
+                                   orderCode = b.OrderCode,
                                    customerName = c.FullName,
                                    customerPhone = c.Phone,
                                    customerEmail = c.Email,
                                    customerAddress = c.Address ?? "",
-                                   subtotal = _contextShop.BillDetails.Where(d => d.BillId == b.BillId).Sum(d => d.Total ?? 0),
+                                   subtotal = _contextShop.BillDetails.Where(d => d.BillId == b.BillId).Sum(d => (decimal?)(d.Total) ?? 0m),
                                    discount = 0, // Add logic if you have discount
                                    tax = 0, // Add logic if you have tax
                                    total = b.TotalAmount,
                                    paymentMethod = b.PaymentMethod,
-                                   status = b.Status == true ? "paid" : "unpaid",
+                                   status = b.PaidAt <= DateTime.Now ? "paid" : "unpaid",
                                    createdAt = b.CreateAt,
-                                   paymentDate = b.Status == true ? b.CreateAt : null, // Replace with actual payment date if available
+                                   paymentDate = b.PaidAt, // Replace with actual payment date if available
                                    note = "", // Add note if you have
                                    items = (from bd in _contextShop.BillDetails
                                             join pd in _contextShop.ProductDetails on bd.ProductDetailId equals pd.ProductDetailId

@@ -18,7 +18,5 @@ public partial class Transport
 
     [Column(TypeName = "decimal(18, 2)")]
     public decimal Cost { get; set; }
-
-    [InverseProperty("Transport")]
     public virtual ICollection<Bill> Bills { get; set; } = new List<Bill>();
 }

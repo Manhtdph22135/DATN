@@ -8,15 +8,19 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 // Đăng ký DbContext vào DI container
 builder.Services.AddDbContext<DbContextShop>(options =>
-    options.UseSqlServer(connectionString)
-);
+{
+    options.UseSqlServer(connectionString);
+    options.EnableDetailedErrors();
+    options.EnableSensitiveDataLogging();
+    options.LogTo(Console.WriteLine, LogLevel.Information);
+});
 
 // Add this before `builder.Build()`
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // địa chỉ chạy Vite
+        policy.WithOrigins("http://localhost:5173") // Đúng origin frontend của bạn
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

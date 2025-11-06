@@ -45,7 +45,5 @@ public partial class Staff
 
     [Column("RoleID")]
     public int RoleId { get; set; }
-
-    [InverseProperty("Staff")]
     public virtual ICollection<Bill> Bills { get; set; } = new List<Bill>();
 }

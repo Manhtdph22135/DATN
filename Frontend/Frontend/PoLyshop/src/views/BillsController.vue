@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import bootstrap from "@/utils/bootstrapHelper";
 import { productService } from "@/services/productService";
+import { customerService } from "@/services/customerService";
 
 // Search and suggestions state
 const search = ref("");
@@ -28,127 +29,12 @@ const currentOrderId = ref("ĐH" + new Date().getTime().toString().slice(-6));
 const categories = ref([{ id: "all", name: "Tất cả" }]);
 const products = ref([]);
 
-// Sample data for development
-const sampleProducts = [
-  {
-    id: 1,
-    productName: "Áo thun nam basic",
-    price: 250000,
-    category: "tshirt",
-    stock: 100,
-    image: "https://dosi-in.com/images/detailed/41/lnc_tr%C6%A1n_3.png",
-  },
-  {
-    id: 2,
-    productName: "Quần jeans nam slim fit",
-    price: 450000,
-    category: "pants",
-    stock: 50,
-    image: "https://vn-test-11.slatic.net/p/9bb2a97169e7673623ade19ccafeaff3.jpg",
-  },
-  {
-    id: 3,
-    productName: "Áo sơ mi Minimalist",
-    price: 350000,
-    category: "shirt",
-    stock: 75,
-    image: "https://product.hstatic.net/1000360022/product/ao-so-mi-linen-nam-tay-ngan-minimal-collection-form-regular__7__96ae3e35f57049438841a8a8459c336a.jpg",
-  },
-  {
-    id: 4,
-    productName: "Váy liền thân",
-    price: 550000,
-    category: "dress",
-    stock: 25,
-    image: "https://file.hstatic.net/200000503583/file/mau-vay-lien-than-dep-cardina__20_.jpg_b05b34e6d8e540d693df036aca23fbbd.jpg",
-  },
-  {
-    id: 5,
-    productName: "Áo polo nam",
-    price: 320000,
-    category: "tshirt",
-    stock: 60,
-    image: "https://4men.com.vn/thumbs/2022/08/ao-polo-slimfit-stripe-color-po083-mau-den-21295-p.jpg",
-  },
-  {
-    id: 6,
-    productName: "Quần short kaki",
-    price: 250000,
-    category: "pants",
-    stock: 45,
-    image: "https://4men.com.vn/thumbs/2021/02/quan-short-kaki-tron-qs009-19221-p.png",
-  },
-  {
-    id: 7,
-    productName: "Thắt lưng da",
-    price: 180000,
-    category: "accessories",
-    stock: 30,
-    image: "https://lh4.googleusercontent.com/n6g1hX2jMqfCirizMT5tBNsLhkdP9FjjNMX851fyxNmm8S-6gCRwhqxfx6XNpIeFJy6uStQnZjjBTqupqV-4TjmTJlAhVBKWKLB1aDWYVGDgCHyVt9_0kd_ovBCLXdW9X5PaRpJYhlSxHUpHkiB3Z7w",
-  },
-  {
-    id: 8,
-    productName: "Áo khoác denim",
-    price: 650000,
-    category: "shirt",
-    stock: 20,
-    image: "https://product.hstatic.net/1000360022/product/z3907027303949_e9fb89295d4938b8c37bec9aecb06c46_c26702be229b4874a4b17bfc711825b9.jpg",
-  },
-  {
-    id: 9,
-    productName: "Túi xách nữ",
-    price: 450000,
-    category: "accessories",
-    stock: 15,
-    image: "https://louiskimmi.vn/wp-content/uploads/2022/10/z3770072061822_f6866e936dfba3450397e713827657fc.jpg",
-  },
-  {
-    id: 10,
-    productName: "Đầm dự tiệc",
-    price: 850000,
-    category: "dress",
-    stock: 10,
-    image: "https://cdn.kkfashion.vn/16217-home_default/dam-xoe-du-tiec-nguc-xep-ly-hl19-20.jpg",
-  },
-];
+// Replace the static sampleCustomers with reactive ref
+// Removed unused customers variable
 
-const sampleCustomers = [
-  {
-    id: 1,
-    name: "Nguyễn Văn An",
-    phone: "0912345678",
-    email: "an.nguyen@gmail.com",
-    address: "12 Nguyễn Trãi, Q1, TP.HCM",
-  },
-  {
-    id: 2,
-    name: "Trần Thị Bình",
-    phone: "0987654321",
-    email: "binh.tran@gmail.com",
-    address: "34 Lê Duẩn, Q3, TP.HCM",
-  },
-  {
-    id: 3,
-    name: "Lê Hoàng Cường",
-    phone: "0938123456",
-    email: "cuong.le@gmail.com",
-    address: "56 Hai Bà Trưng, Q5, TP.HCM",
-  },
-  {
-    id: 4,
-    name: "Phạm Thị Dung",
-    phone: "0909123123",
-    email: "dung.pham@gmail.com",
-    address: "78 Võ Thị Sáu, Q10, TP.HCM",
-  },
-  {
-    id: 5,
-    name: "Võ Minh Đức",
-    phone: "0977123456",
-    email: "duc.vo@gmail.com",
-    address: "90 Pasteur, Q1, TP.HCM",
-  },
-];
+const showError = ref(false);
+const errorMessage = ref('');
+const isLoading = ref(false);
 
 // Computed properties
 const filteredProducts = computed(() => {
@@ -208,44 +94,74 @@ const fetchProducts = () => {
   }, 300);
 };
 
-const fetchCustomers = () => {
-  if (!customerSearch.value.trim()) {
+const fetchCustomers = async () => {
+  const term = customerSearch.value.trim();
+  if (!term) {
     customerSuggestions.value = [];
+    showCustomerSuggestions.value = false;
+    isLoading.value = false; // tránh kẹt loading nếu return sớm
     return;
   }
 
+  isLoading.value = true;
   try {
-    const searchTerm = customerSearch.value.toLowerCase();
-    customerSuggestions.value = sampleCustomers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchTerm) ||
-        c.phone.includes(searchTerm)
-    );
-  } catch {
+    const response = await customerService.getCustomers(); // API của bạn chưa nhận query
+
+    // Normalize response to an array in a defensive way (handles Array, { $values: [...] }, { data: [...] }, or other shapes)
+    // Chuẩn hóa dữ liệu khách hàng
+    const customersArray = (
+      Array.isArray(response)
+        ? response
+        : response && Array.isArray(response.$values)
+          ? response.$values
+          : response && Array.isArray(response.data)
+            ? response.data
+            : []
+    ).map(c => ({
+      customerId: c.customerId || c.id,
+      fullname: c.fullname || c.fullName || c.name || "Không rõ tên",
+      phone: c.phone || c.phoneNumber || "",
+      email: c.email || "",
+      address: c.address || "",
+      rankMember: c.rankMember || "",
+      point: c.point || 0
+    }));
+
+
+    customerSuggestions.value = customersArray.filter(c => {
+      const name = (c.fullname || c.fullName || c.name || '').toLowerCase();
+      const phone = (c.phone || '').toString();
+      const q = term.toLowerCase();
+      return (name && name.includes(q)) || (phone && phone.includes(term));
+    });
+
+    showCustomerSuggestions.value = customerSuggestions.value.length > 0;
+  } catch (err) {
+    console.error(err);
+    showError.value = true;
+    errorMessage.value = 'Không thể tải danh sách khách hàng. Vui lòng thử lại.';
     customerSuggestions.value = [];
+    showCustomerSuggestions.value = false;
+  } finally {
+    isLoading.value = false;
   }
 };
+
+
 
 const selectProduct = (product) => {
   if (product.stock <= 0) {
     alert('Sản phẩm đã hết hàng!');
     return;
   }
-
-  search.value = "";
-  showSuggestions.value = false;
-  suggestions.value = [];
-
-  const existingItem = cart.value.find((item) => item.id === product.id);
-  if (existingItem) {
-    if (existingItem.quantity < product.stock) {
-      existingItem.quantity += 1;
-    } else {
-      alert('Số lượng đặt hàng đã đạt giới hạn tồn kho!');
-    }
+  const exist = cart.value.find(i => i.productDetailId === product.productDetailId);
+  if (exist) {
+    if (exist.quantity < product.stock) exist.quantity += 1;
+    else alert('Số lượng đặt đã đạt tồn kho!');
   } else {
     cart.value.push({
-      id: product.id,
+      id: product.id,                         // productId
+      productDetailId: product.productDetailId,
       productName: product.productName,
       price: product.price,
       quantity: 1,
@@ -253,10 +169,22 @@ const selectProduct = (product) => {
       maxStock: product.stock
     });
   }
+
+  // clear search UI
+  search.value = ""; showSuggestions.value = false; suggestions.value = [];
 };
 
+// Update the selectCustomer method to match new structure
 const selectCustomer = (c) => {
-  customer.value = c;
+  customer.value = {
+    id: c.customerId,
+    fullname: c.fullname,
+    phone: c.phone,
+    email: c.email,
+    address: c.address,
+    rankMember: c.rankMember,
+    point: c.point
+  };
   customerSearch.value = "";
   showCustomerSuggestions.value = false;
 };
@@ -279,44 +207,50 @@ const removeItem = (index) => {
   cart.value.splice(index, 1);
 };
 
+// Helper chuẩn hoá và map sản phẩm
+function asArray(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.$values)) return res.$values;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+function mapProduct(p) {
+  return {
+    id: p.productId,
+    productDetailId: p.productDetailId ?? null, // QUAN TRỌNG cho trừ kho
+    productName: p.productName,
+    price: p.price,
+    category: p.categoryId ?? null,
+    status: !!p.status,
+    stock: p.stockQuantity ?? 0,
+    image: p.image || "default-product-image.jpg",
+
+    // Thuộc tính hiển thị
+    categoryName: p.categoryName,
+    trademark: p.trademark,
+    materialName: p.materialName,
+    sizeName: p.sizeName,
+    colorName: p.colorName,
+
+    // Nếu backend có kèm các ID biến thể, giữ lại để dùng sau
+    sizeId: p.sizeId ?? null,
+    colorId: p.colorId ?? null,
+    materialId: p.materialId ?? null,
+  };
+}
+
 const selectCategory = async (categoryId) => {
   activeTab.value = categoryId;
   try {
-    if (categoryId === "all") {
-      const productsData = await productService.getProducts();
-      products.value = productsData.map((product) => ({
-        id: product.productId,
-        productName: product.productName,
-        price: product.price,
-        category: product.categoryId,
-        status: product.status,
-        stock: product.stockQuantity,
-        image: product.image || "default-product-image.jpg",
-        categoryName: product.categoryName,
-        trademark: product.trademark,
-        materialName: product.materialName,
-        sizeName: product.sizeName,
-        colorName: product.colorName,
-      }));
-    } else {
-      const productsData = await productService.getProductsByCategory(categoryId);
-      products.value = productsData.$values.map((product) => ({
-        id: product.productId,
-        productName: product.productName,
-        price: product.price,
-        category: product.categoryId,
-        status: product.status,
-        stock: product.stockQuantity,
-        image: product.image || "default-product-image.jpg",
-        categoryName: product.categoryName,
-        trademark: product.trademark,
-        materialName: product.materialName,
-        sizeName: product.sizeName,
-        colorName: product.colorName,
-      }));
-    }
+    const productsData = categoryId === "all"
+      ? await productService.getProducts()
+      : await productService.getProductsByCategory(categoryId);
+
+    products.value = asArray(productsData).map(mapProduct);
   } catch (error) {
     console.error("Error fetching products:", error);
+    products.value = [];
   }
 };
 
@@ -347,7 +281,12 @@ const formatCurrency = (value) => {
   }).format(value);
 };
 
-const processPayment = () => {
+const processPayment = async () => {
+  if (selectCustomer && !customer.value) {
+    showToast("Vui lòng chọn khách hàng hoặc thêm mới!", "warning");
+    return;
+  }
+
   if (cart.value.length === 0) {
     showToast("Vui lòng thêm sản phẩm vào giỏ hàng", "warning");
     return;
@@ -368,29 +307,62 @@ const processPayment = () => {
     return;
   }
 
-  const order = {
-    orderId: currentOrderId.value,
-    customer: customer.value,
-    items: cart.value,
-    subtotal: subtotal.value,
-    tax: totalTax.value,
-    discount: totalDiscount.value,
-    total: grandTotal.value,
+  // Chuẩn bị dữ liệu gửi API
+  const payload = {
+    orderCode: currentOrderId.value,                        // VD: "ĐH643534"
+    customerId: customer.value?.id || null,
+    cashierId: 1,                                          // TODO: lấy từ user đăng nhập
     paymentMethod: paymentMethod.value,
-    amountReceived: amountReceived.value,
-    change: changeAmount.value,
+    amountReceived: paymentMethod.value === 'cash'
+      ? amountReceived.value
+      : grandTotal.value,
+    discountAmount: totalDiscount.value,
+    discountPercent: discountPercent.value,
     note: orderNote.value,
-    date: new Date().toISOString(),
+    items: cart.value.map(i => ({
+      productDetailId: i.productDetailId ?? i.id,
+      productId: i.id,
+      productName: i.productName,
+      quantity: i.quantity,
+      unitPrice: i.price,
+      totalPrice: i.price * i.quantity,
+      sizeId: i.sizeId ?? null,
+      colorId: i.colorId ?? null,
+      materialId: i.materialId ?? null
+    }))
   };
 
-  console.log("Processing order:", order);
+  try {
+    const API_BASE = "https://localhost:7055";
 
-  const modal = new bootstrap.Modal(
-    document.getElementById("paymentSuccessModal")
-  );
-  modal.show();
+    const res = await fetch(`${API_BASE}/api/Checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-  showToast("Thanh toán thành công!", "success");
+    if (!res.ok) throw new Error(await res.text());
+
+    const data = await res.json();
+    showToast("Thanh toán thành công! Đã trừ tồn kho.", "success");
+
+    grandTotal.value = data.total;  // Lấy tổng từ response
+    changeAmount.value = data.change;  // Lấy tiền thừa từ response
+
+    // hiện modal + reset đơn
+    const modal = new bootstrap.Modal(document.getElementById("paymentSuccessModal"));
+    try {
+      await fetchInitialData();
+      await selectCategory(activeTab.value);
+    } catch (err) {
+      console.error("Error reloading categories/products:", err);
+    }
+    modal.show();
+    startNewOrder();
+  } catch (e) {
+    console.error(e);
+    showToast("Lỗi khi xử lý thanh toán: " + e.message, "danger");
+  }
 };
 
 // Toast helper
@@ -536,12 +508,10 @@ onMounted(() => {
             <!-- Product grid view -->
             <div v-if="showProductGrid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
               <div v-for="product in filteredProducts" :key="product.id" class="col">
-                <div
-                  class="card h-100 product-card"
+                <div class="card h-100 product-card"
                   :class="{ 'opacity-50': !product.status, 'pointer-events-none': !product.status }"
                   @click="product.status && selectProduct(product)"
-                  :style="!product.status ? 'cursor: not-allowed;' : ''"
-                >
+                  :style="!product.status ? 'cursor: not-allowed;' : ''">
                   <img :src="product.image" class="card-img-top product-img" :alt="product.productName" />
                   <div class="card-body">
                     <h6 class="card-title product-title">
@@ -579,21 +549,15 @@ onMounted(() => {
                       <img :src="product.image" class="product-list-img" />
                     </td>
                     <td>
-                        {{ product.productName }}
-                        <small>
-                          <span
-                          v-if="product.status"
-                          class="badge bg-success"
-                          >
+                      {{ product.productName }}
+                      <small>
+                        <span v-if="product.status" class="badge bg-success">
                           Đang bán
-                          </span>
-                          <span
-                          v-else
-                          class="badge bg-secondary"
-                          >
+                        </span>
+                        <span v-else class="badge bg-secondary">
                           Ngưng bán
-                          </span>
-                        </small>
+                        </span>
+                      </small>
                     </td>
                     <td>
                       <span class="badge bg-light text-dark">
@@ -605,13 +569,10 @@ onMounted(() => {
                     <td>{{ formatCurrency(product.price) }}</td>
                     <td>{{ product.stock }}</td>
                     <td>
-                        <button
-                        class="btn btn-sm btn-primary"
-                        @click="selectProduct(product)"
-                        :disabled="!product.status"
-                        >
+                      <button class="btn btn-sm btn-primary" @click="selectProduct(product)"
+                        :disabled="!product.status">
                         <i class="bi bi-plus-circle"></i> Thêm
-                        </button>
+                      </button>
                     </td>
                   </tr>
                 </tbody>
@@ -640,9 +601,22 @@ onMounted(() => {
                 </button>
                 <ul v-if="showCustomerSuggestions && customerSuggestions.length"
                   class="list-group position-absolute customer-suggestions">
-                  <li v-for="c in customerSuggestions" :key="c.id" class="list-group-item list-group-item-action"
+                  <li v-for="c in customerSuggestions" :key="c.customerId"
+                    class="list-group-item list-group-item-action suggestion-item d-flex align-items-center"
                     @mousedown.prevent="selectCustomer(c)">
-                    {{ c.name }} - {{ c.phone }}
+                    <div class="me-2">
+                      <i class="bi bi-person-circle fs-4 text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold">{{ c.fullname }}</div>
+                      <div class="small text-muted">
+                        {{ c.phone }}
+                        <span v-if="c.rankMember" class="rank-badge">{{ c.rankMember }}</span>
+                      </div>
+                    </div>
+                    <div class="text-end small text-muted">
+                      Chọn
+                    </div>
                   </li>
                 </ul>
               </div>
@@ -650,7 +624,7 @@ onMounted(() => {
                 class="selected-customer p-2 border rounded d-flex justify-content-between align-items-center">
                 <div>
                   <div>
-                    <strong>{{ customer.name }}</strong>
+                    <strong>{{ customer.fullname }}</strong>
                   </div>
                   <div class="text-muted small">{{ customer.phone }}</div>
                 </div>
@@ -684,11 +658,13 @@ onMounted(() => {
                           {{ formatCurrency(item.price) }}
                         </div>
                         <div class="quantity-controls">
-                          <button class="btn btn-sm btn-outline-secondary" @click="decreaseQuantity(item)">
+                          <button class="btn btn-sm btn-outline-secondary" @click="decreaseQuantity(item)"
+                            :disabled="item.quantity <= 1">
                             -
                           </button>
                           <span class="mx-2">{{ item.quantity }}</span>
-                          <button class="btn btn-sm btn-outline-secondary" @click="increaseQuantity(item)">
+                          <button class="btn btn-sm btn-outline-secondary" @click="increaseQuantity(item)"
+                            :disabled="item.quantity >= item.maxStock">
                             +
                           </button>
                         </div>
@@ -818,6 +794,7 @@ onMounted(() => {
                         : "VNPay"
               }}
             </p>
+            <p class="mb-3">Tiền thừa: {{ formatCurrency(changeAmount) }}</p>
             <div class="d-flex justify-content-center gap-2">
               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                 <i class="bi bi-printer"></i> In hóa đơn
@@ -974,5 +951,38 @@ onMounted(() => {
 .quantity-controls {
   display: flex;
   align-items: center;
+}
+
+.suggestion-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.suggestion-item:hover {
+  background-color: #f1f1f1;
+}
+
+.customer-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.customer-name {
+  font-weight: 500;
+}
+
+.customer-details {
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.rank-badge {
+  background-color: #007bff;
+  color: white;
+  border-radius: 12px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
 }
 </style>
