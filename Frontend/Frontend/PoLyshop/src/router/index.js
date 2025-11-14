@@ -18,6 +18,7 @@ import CartView from "../views/store/CartView.vue";
 import CheckoutView from "../views/store/CheckoutView.vue";
 import UserAccountView from "../views/user/UserAccountView.vue";
 import UserOrdersView from "../views/user/UserOrdersView.vue";
+import NewsDetailView from "../views/store/NewsDetailView.vue";
 import NewsView from "../views/store/NewsView.vue";
 import TopsView from "../views/store/TopsView.vue";
 import BottomsView from "../views/store/BottomsView.vue";
@@ -128,6 +129,11 @@ const routes = [
     meta: { requiresAuth: true },
   },
   // Shop category routes
+  {
+  path: "/post/:id",
+  name: "PostDetail",
+  component: () => import("../views/store/NewsDetailView.vue"),
+  },
   {
     path: "/news",
     name: "news",

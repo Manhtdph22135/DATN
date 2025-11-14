@@ -5,6 +5,15 @@ import { ref, onMounted } from "vue";
 const newsArticles = ref([]);
 const isLoading = ref(true);
 
+// Bài viết đang được chọn để xem chi tiết
+const selectedArticle = ref(null);
+
+// Hàm xem chi tiết bài viết
+function viewDetail(article) {
+  selectedArticle.value = article;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 // Giả lập dữ liệu
 const mockNews = [
   {
@@ -43,7 +52,7 @@ const mockNews = [
     summary:
       "Chuyển đổi quy trình sản xuất sang hướng thân thiện với môi trường",
     content:
-      "Hưởng ứng làn sóng thời trang bền vững toàn cầu, POLY đã cam kết chuyển đổi 50% quy trình sản xuất sang sử dụng vật liệu thân thiện với môi trường trước năm 2025. Các sản phẩm thuộc dòng 'POLY Earth' sẽ được làm từ bông organic, polyester tái chế và các vật liệu bền vững khác, đánh dấu bước tiến quan trọng trong hành trình phát triển bền vững của thương hiệu.",
+      "Hưởng ứng làn sóng thời trang bền vững toàn cầu, POLY đã cam kết chuyển đổi 50% quy trình sản xuất sang sử dụng vật liệu thân thiện với môi trường trước năm 2025.",
     image: "https://btnmt.1cdn.vn/2020/06/28/tui-vai-bao-ve-moi-truong.jpg",
     date: "2024-04-15",
     author: "Green Team",
@@ -53,8 +62,9 @@ const mockNews = [
     title: "Mở rộng cửa hàng POLY tại Cầu Giấy",
     summary: "Cửa hàng thứ 3 của POLY sẽ khai trương vào tháng 7/2024",
     content:
-      "Tiếp nối thành công của hai cửa hàng tại Đống Đa và Hà Đông, POLY chính thức công bố kế hoạch mở rộng hệ thống với cửa hàng thứ 3 tại Đà Nẵng. Dự kiến khai trương vào tháng 7/2024, cửa hàng mới sẽ mang đến trải nghiệm mua sắm hoàn toàn mới với không gian thiết kế hiện đại và bộ sưu tập đa dạng phù hợp với phong cách miền Trung.",
-    image: "https://images.squarespace-cdn.com/content/v1/591fd77d29687fd09cca478b/1555546030336-YXVPG30KTCM92JW89UTL/ke17ZwdGBToddI8pDm48kDrQ9tfdcvPUv7NgXGP4R2R7gQa3H78H3Y0txjaiv_0fDoOvxcdMmMKkDsyUqMSsMWxHk725yiiHCCLfrh8O1z4YTzHvnKhyp6Da-NYroOW3ZGjoBKy3azqku80C789l0gmXcXvEVFTLbYX9CdVcGe4zwrosjp5YtnrvbmlM1LFKb7wNXE8lRZ0Z8l5PIsW3Vw/AdobeStock_139559217.jpeg",
+      "Tiếp nối thành công của hai cửa hàng tại Đống Đa và Hà Đông, POLY chính thức công bố kế hoạch mở rộng hệ thống với cửa hàng thứ 3 tại Đà Nẵng.",
+    image:
+      "https://images.squarespace-cdn.com/content/v1/591fd77d29687fd09cca478b/1555546030336-YXVPG30KTCM92JW89UTL/ke17ZwdGBToddI8pDm48kDrQ9tfdcvPUv7NgXGP4R2R7gQa3H78H3Y0txjaiv_0fDoOvxcdMmMKkDsyUqMSsMWxHk725yiiHCCLfrh8O1z4YTzHvnKhyp6Da-NYroOW3ZGjoBKy3azqku80C789l0gmXcXvEVFTLbYX9CdVcGe4zwrosjp5YtnrvbmlM1LFKb7wNXE8lRZ0Z8l5PIsW3Vw/AdobeStock_139559217.jpeg",
     date: "2024-03-30",
     author: "Marketing POLY",
   },
@@ -62,7 +72,6 @@ const mockNews = [
 
 // Tải dữ liệu khi component được mount
 onMounted(async () => {
-  // Giả lập delay API
   await new Promise((resolve) => setTimeout(resolve, 1000));
   newsArticles.value = mockNews;
   isLoading.value = false;
@@ -86,16 +95,45 @@ function formatDate(dateString) {
       <p class="subtitle">Cập nhật những tin tức mới nhất từ POLY</p>
     </div>
 
-    <!-- Loading state -->
+    <!-- Loading -->
     <div class="loading-container" v-if="isLoading">
       <div class="spinner"></div>
       <p>Đang tải tin tức...</p>
     </div>
 
-    <!-- News content -->
+    <!-- CHỖ HIỂN THỊ CHI TIẾT BÀI VIẾT -->
+    <div v-if="selectedArticle" class="article-detail-box">
+      <button class="back-btn" @click="selectedArticle = null">
+        ⬅ Quay lại danh sách
+      </button>
+
+      <h1 class="detail-title">{{ selectedArticle.title }}</h1>
+
+      <div class="detail-info">
+        <span class="date">{{ formatDate(selectedArticle.date) }}</span>
+        <span class="author">• {{ selectedArticle.author }}</span>
+      </div>
+
+      <div class="detail-image">
+        <img :src="selectedArticle.image" style="width: 1200px;"/>
+      </div>
+
+      <p class="detail-summary">{{ selectedArticle.summary }}</p>
+
+      <div class="detail-content">
+        {{ selectedArticle.content }}
+      </div>
+    </div>
+
+    <!-- NẾU KHÔNG ĐANG XEM CHI TIẾT -->
     <div class="news-content" v-else>
-      <!-- Featured article -->
-      <div class="featured-article" v-if="newsArticles.length > 0">
+      <!-- FEATURED ARTICLE -->
+      <div
+        class="featured-article"
+        v-if="newsArticles.length > 0"
+        @click="viewDetail(newsArticles[0])"
+        style="cursor:pointer"
+      >
         <div class="featured-image">
           <img :src="newsArticles[0].image" :alt="newsArticles[0].title" />
         </div>
@@ -113,7 +151,7 @@ function formatDate(dateString) {
         </div>
       </div>
 
-      <!-- Recent articles -->
+      <!-- RECENT ARTICLES -->
       <div class="recent-articles">
         <h3 class="section-title">Bài viết gần đây</h3>
 
@@ -122,6 +160,8 @@ function formatDate(dateString) {
             v-for="article in newsArticles.slice(1)"
             :key="article.id"
             class="article-card"
+            @click="viewDetail(article)"
+            style="cursor: pointer"
           >
             <div class="article-image">
               <img :src="article.image" :alt="article.title" />
@@ -139,7 +179,7 @@ function formatDate(dateString) {
         </div>
       </div>
 
-      <!-- Newsletter signup -->
+      <!-- NEWSLETTER -->
       <div class="newsletter-section">
         <div class="newsletter-content">
           <h3>Đăng ký nhận tin</h3>
@@ -406,3 +446,4 @@ function formatDate(dateString) {
   }
 }
 </style>
+
