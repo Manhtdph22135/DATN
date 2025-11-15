@@ -7,9 +7,6 @@ const newsArticles = ref([]);
 const isLoading = ref(true);
 const error = ref(null);
 
-// XÓA selectedArticle vì không dùng nữa
-// const selectedArticle = ref(null);
-
 const fetchNews = async () => {
   try {
     console.log('🔄 Đang gọi API News...');
@@ -44,7 +41,7 @@ const fetchNews = async () => {
   }
 };
 
-// SỬA: Dùng router để điều hướng sang trang chi tiết
+//Dùng router để điều hướng sang trang chi tiết
 function viewDetail(article) {
   router.push(`/news/${article.id}`);
 }
@@ -86,7 +83,6 @@ function formatDate(dateString) {
       <p>📭 Không có bài viết nào</p>
     </div>
 
-    <!-- CHỈ HIỂN THỊ DANH SÁCH - KHÔNG CÓ PHẦN CHI TIẾT TRÊN CÙNG TRANG -->
     <div class="news-content" v-if="!isLoading && newsArticles.length > 0">
       <!-- Featured Article -->
       <div 
