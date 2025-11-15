@@ -130,14 +130,18 @@ const routes = [
   },
   // Shop category routes
   {
-  path: "/post/:id",
-  name: "PostDetail",
-  component: () => import("../views/store/NewsDetailView.vue"),
+    path: '/',
+    redirect: '/news' // Redirect đến trang news
   },
   {
-    path: "/news",
-    name: "news",
-    component: NewsView,
+    path: '/news',
+    name: 'NewsList',
+    component: NewsView
+  },
+  {
+    path: '/news/:id',
+    name: 'NewsDetail', 
+    component: NewsDetailView,
   },
   {
     path: "/tops",

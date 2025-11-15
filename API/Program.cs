@@ -21,6 +21,15 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod();
     });
 });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // Đăng ký các dịch vụ khác
 builder.Services.AddControllers();
@@ -42,7 +51,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-
+app.UseCors("AllowAll");
 app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthorization();
