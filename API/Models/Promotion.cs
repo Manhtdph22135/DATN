@@ -10,7 +10,9 @@ namespace API.Models;
 public partial class Promotion
 {
     [Key]
+    
     [Column("PromotionID")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int PromotionId { get; set; }
 
     [StringLength(255)]
@@ -39,4 +41,5 @@ public partial class Promotion
 
     [Column("ProductID")]
     public int? ProductId { get; set; }
+    public string? Code { get; set; } 
 }

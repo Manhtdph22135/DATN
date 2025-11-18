@@ -22,8 +22,8 @@ import NewsView from "../views/store/NewsView.vue";
 import TopsView from "../views/store/TopsView.vue";
 import BottomsView from "../views/store/BottomsView.vue";
 import SaleView from "../views/store/SaleView.vue";
-import HotView from "../views/store/HotView.vue";
 import ContactView from "../views/store/ContactView.vue";
+import OrderDetailView from '../views/store/OrderDetailView.vue';
 
 // Admin Views
 import BillView from "../views/admin/BillView.vue";
@@ -149,14 +149,14 @@ const routes = [
     component: SaleView,
   },
   {
-    path: "/hot",
-    name: "hot",
-    component: HotView,
-  },
-  {
     path: "/contact",
     name: "contact",
     component: ContactView,
+  },
+  {
+    path: '/order-success/:id', // :id là tham số động (Mã đơn hàng)
+    name: 'order-success',
+    component: OrderDetailView
   },
   // Admin routes
   {

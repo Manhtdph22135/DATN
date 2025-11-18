@@ -423,30 +423,20 @@ namespace API.Migrations
                 table: "Bills",
                 column: "CustomerID");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bills_CustomerId1",
-                table: "Bills",
-                column: "CustomerId1");
+            
 
             migrationBuilder.CreateIndex(
                 name: "IX_Bills_StaffID",
                 table: "Bills",
                 column: "StaffID");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bills_StaffId1",
-                table: "Bills",
-                column: "StaffId1");
+
 
             migrationBuilder.CreateIndex(
                 name: "IX_Bills_TransportID",
                 table: "Bills",
                 column: "TransportID");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_Bills_TransportId1",
-                table: "Bills",
-                column: "TransportId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CartDetails_CartID",

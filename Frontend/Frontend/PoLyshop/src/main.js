@@ -1,7 +1,13 @@
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 import "bootstrap-icons/font/bootstrap-icons.css";
+// Trong file src/main.js
 
+// 1. Import file bundle (quan trọng là .bundle.min.js)
+import bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js';
+
+// 2. Gán vào window để file .vue dùng được
+window.bootstrap = bootstrap;
 import { createApp } from "vue";
 import App from "./App.vue";
 import router from "./router";

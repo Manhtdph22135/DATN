@@ -17,10 +17,10 @@ namespace API.Controllers.Bill
     {
         private readonly DbContextShop _context;
         private readonly DLBase _dLBase;
-        public BillDetailsController(DbContextShop context)
+        public BillDetailsController(DbContextShop context, DLBase dLBase)
         {
             _context = context;
-            _dLBase = new DLBase();
+            _dLBase = dLBase;
         }
 
         // GET: api/BillDetails

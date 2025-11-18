@@ -69,7 +69,7 @@ function goToAdminDashboard() {
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="logo-container">
-          <img src="@/components/img/logo.png" alt="POLY" class="logo" />
+          <router-link to="/shop"><img src="@/components/img/logo.png" alt="POLY" class="logo" /></router-link>
         </div>
         <div class="menu-title">Quản lý</div>
         <ul class="sidebar-menu">
@@ -174,7 +174,6 @@ function goToAdminDashboard() {
           <li><router-link to="/tops">Áo</router-link></li>
           <li><router-link to="/bottoms">Quần</router-link></li>
           <li><router-link to="/sale">Ưu đãi</router-link></li>
-          <li><router-link to="/hot">Nổi bật</router-link></li>
           <li><router-link to="/contact">Liên hệ</router-link></li>
         </ul>
       </nav>

@@ -7,7 +7,7 @@ namespace API.Context
     {
         public DataTable GetData(string query)
         {
-            string sqlConnectionString = @"Data Source=DEVMANH;Initial Catalog=Duantotnghiep;Integrated Security=True;Encrypt=True;TrustServerCertificate=True";
+            string sqlConnectionString = @"Data Source=BALENGUYENQ;Initial Catalog=Duantotnghiep;Integrated Security=True;Encrypt=True;TrustServerCertificate=True";
             using (SqlConnection sqlConnection = new SqlConnection(sqlConnectionString))
             {
                 sqlConnection.Open();

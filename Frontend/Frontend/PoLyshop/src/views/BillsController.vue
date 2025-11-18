@@ -333,7 +333,7 @@ const processPayment = async () => {
   };
 
   try {
-    const API_BASE = "https://localhost:7055";
+    const API_BASE = "http://localhost:7055";
 
     const res = await fetch(`${API_BASE}/api/Checkout`, {
       method: "POST",
@@ -341,13 +341,10 @@ const processPayment = async () => {
       body: JSON.stringify(payload),
     });
 
-    if (!res.ok) throw new Error(await res.text());
-
-    const data = await res.json();
-    showToast("Thanh toán thành công! Đã trừ tồn kho.", "success");
-
-    grandTotal.value = data.total;  // Lấy tổng từ response
-    changeAmount.value = data.change;  // Lấy tiền thừa từ response
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${res.status}`);
+    }
 
     // hiện modal + reset đơn
     const modal = new bootstrap.Modal(document.getElementById("paymentSuccessModal"));

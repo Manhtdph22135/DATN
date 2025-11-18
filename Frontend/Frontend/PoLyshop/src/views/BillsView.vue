@@ -57,17 +57,20 @@ const fetchBills = async () => {
   try {
     loading.value = true;
 
-    // For development - using sample data
-    setTimeout(() => {
-      bills.value = sampleBills;
-      loading.value = false;
-    }, 500);
-
-    // API implementation (commented out for development)
-    // const res = await axios.get('/api/Bills/hoadon')
-    // bills.value = res.data.$values || []
+    // API implementation
+    const API_BASE = "http://localhost:7055";
+    const res = await fetch(`${API_BASE}/api/Bills/hoadon`);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    bills.value = data.$values || data || [];
   } catch (err) {
+    console.error("Error fetching bills:", err);
     error.value = "Không thể lấy dữ liệu hóa đơn.";
+    // Fallback to sample data for development
+    bills.value = sampleBills;
+  } finally {
     loading.value = false;
   }
 };

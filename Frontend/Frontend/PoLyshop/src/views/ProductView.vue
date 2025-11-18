@@ -27,39 +27,9 @@ const currentProduct = ref({
   colorName: "",
   stockQuantity: 0,
 });
-const sizes = ref([
-  { sizeId: 1, sizeName: 'S' },
-  { sizeId: 2, sizeName: 'M' },
-  { sizeId: 3, sizeName: 'L' },
-  { sizeId: 4, sizeName: 'XL' },
-  { sizeId: 5, sizeName: 'XXL' },
-]);
-
-const colors = ref([
-  { colorId: 1, colorName: 'Đỏ' },
-  { colorId: 2, colorName: 'Xanh dương' },
-  { colorId: 3, colorName: 'Xanh lá' },
-  { colorId: 4, colorName: 'Đen' },
-  { colorId: 5, colorName: 'Trắng' },
-  { colorId: 6, colorName: 'Vàng' },
-  { colorId: 7, colorName: 'Cam' },
-  { colorId: 8, colorName: 'Tím' },
-  { colorId: 9, colorName: 'Hồng' },
-  { colorId: 10, colorName: 'Xám' },
-]);
-
-const materials = ref([
-  { materialId: 1, materialName: 'Cotton' },
-  { materialId: 2, materialName: 'Polyester' },
-  { materialId: 3, materialName: 'Rayon' },
-  { materialId: 4, materialName: 'Wool' },
-  { materialId: 5, materialName: 'Silk' },
-  { materialId: 6, materialName: 'Leather' },
-  { materialId: 7, materialName: 'Denim' },
-  { materialId: 8, materialName: 'Linen' },
-  { materialId: 9, materialName: 'Acrylic' },
-  { materialId: 10, materialName: 'Nylon' },
-]);
+const sizes = ref([]);
+const colors = ref([]);
+const materials = ref([]);
 
 const fetchCategories = async () => {
   try {
@@ -73,11 +43,57 @@ const fetchCategories = async () => {
     error.value = "Không thể lấy danh mục sản phẩm: " + err.message;
   }
 };
+const fetchSizes = async () => {
+  try {
+    // Giả sử API của bạn là /api/Product/Sizes như chúng ta đã làm
+    const res = await axios.get("https://localhost:7055/api/Product/Sizes");
+    const raw = Array.isArray(res.data.$values) ? res.data.$values : (Array.isArray(res.data) ? res.data : []);
+    sizes.value = raw.map(s => ({
+      sizeId: s.id, // API của bạn trả về 'id' và 'name'
+      sizeName: s.name 
+    }));
+  } catch (err) {
+    error.value = "Không thể lấy danh sách size: " + err.message;
+  }
+};
+
+const fetchColors = async () => {
+  try {
+    const res = await axios.get("https://localhost:7055/api/Product/Colors");
+    const raw = Array.isArray(res.data.$values) ? res.data.$values : (Array.isArray(res.data) ? res.data : []);
+    colors.value = raw.map(c => ({
+      colorId: c.id, // API của bạn trả về 'id' và 'name'
+      colorName: c.name 
+    }));
+  } catch (err) {
+    error.value = "Không thể lấy danh sách màu sắc: " + err.message;
+  }
+};
+
+const fetchMaterials = async () => {
+  try {
+    // Đảm bảo đường dẫn này khớp với API bạn vừa tạo
+    const res = await axios.get("https://localhost:7055/api/Product/Materials"); 
+    const raw = Array.isArray(res.data.$values) ? res.data.$values : (Array.isArray(res.data) ? res.data : []);
+    
+    // Map 'id' và 'name' (từ API) sang 'materialId' và 'materialName'
+    materials.value = raw.map(m => ({
+      materialId: m.id,
+      materialName: m.name
+    }));
+  } catch (err) {
+    error.value = "Không thể lấy danh sách chất liệu: " + err.message;
+  }
+};
+
+// Sửa hàm onMounted cũ (dòng 94)
 onMounted(() => {
   fetchCategories();
+  fetchSizes();     // <-- THÊM DÒNG NÀY
+  fetchColors();    // <-- THÊM DÒNG NÀY
+  fetchMaterials(); // <-- THÊM DÒNG NÀY
   fetchProducts();
 });
-
 const fetchProducts = async () => {
   try {
     loading.value = true;
