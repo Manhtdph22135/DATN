@@ -473,13 +473,17 @@ export default {
 
       // Apply search filter
       if (searchTerm.value) {
-        const term = searchTerm.value.toLowerCase();
-        result = result.filter(
-          (bill) =>
-            bill.billId.toLowerCase().includes(term) ||
-            bill.customerName.toLowerCase().includes(term) ||
-            bill.customerPhone.includes(term)
-        );
+        const term = String(searchTerm.value).toLowerCase().trim();
+        result = result.filter((bill) => {
+          const billId = String(bill.billId || "").toLowerCase();
+          const customerName = String(bill.customerName || "").toLowerCase();
+          const customerPhone = String(bill.customerPhone || "").toLowerCase();
+          return (
+            billId.includes(term) ||
+            customerName.includes(term) ||
+            customerPhone.includes(term)
+          );
+        });
       }
 
       // Apply date filters
@@ -705,16 +709,15 @@ export default {
       try {
         loading.value = true;
 
-        // For development
+        await axios.delete(`https://localhost:7055/api/Bills/${selectedBill.value.id}`);
+
+        // Remove bill from local list after successful API deletion
         const index = bills.value.findIndex(
           (b) => b.id === selectedBill.value.id
         );
         if (index !== -1) {
           bills.value.splice(index, 1);
         }
-
-        // For production with API
-        // await axios.delete(`/api/admin/bills/${selectedBill.value.id}`)
 
         const modal = bootstrap.Modal.getInstance(
           document.getElementById("deleteModal")

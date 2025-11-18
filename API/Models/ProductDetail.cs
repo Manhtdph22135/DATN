@@ -6,6 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Models;
 
+[Index("ColorId", Name = "IX_ProductDetails_ColorID")]
+[Index("MaterialId", Name = "IX_ProductDetails_MaterialID")]
+[Index("ProductId", Name = "IX_ProductDetails_ProductID")]
+[Index("SizeId", Name = "IX_ProductDetails_SizeID")]
 public partial class ProductDetail
 {
     [Key]
@@ -30,6 +34,9 @@ public partial class ProductDetail
 
     [InverseProperty("ProductDetail")]
     public virtual ICollection<BillDetail> BillDetails { get; set; } = new List<BillDetail>();
+
+    [InverseProperty("ProductDetail")]
+    public virtual ICollection<CartDetail> CartDetails { get; set; } = new List<CartDetail>();
 
     [ForeignKey("ColorId")]
     [InverseProperty("ProductDetails")]

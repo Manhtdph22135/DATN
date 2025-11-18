@@ -6,16 +6,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Models;
 
-[Index("BillId", Name = "IX_BillDetails_BillID")]
-[Index("ProductDetailId", Name = "IX_BillDetails_ProductDetailID")]
-public partial class BillDetail
+[Index("CartId", Name = "IX_CartDetails_CartID")]
+[Index("ProductDetailId", Name = "IX_CartDetails_ProductDetailID")]
+public partial class CartDetail
 {
     [Key]
-    [Column("BillDetailID")]
-    public int BillDetailId { get; set; }
+    [Column("CartDetailID")]
+    public int CartDetailId { get; set; }
 
-    [Column("BillID")]
-    public int BillId { get; set; }
+    [Column("CartID")]
+    public int CartId { get; set; }
 
     [Column("ProductDetailID")]
     public int ProductDetailId { get; set; }
@@ -25,14 +25,14 @@ public partial class BillDetail
     [Column(TypeName = "decimal(18, 2)")]
     public decimal UnitPrice { get; set; }
 
-    [Column(TypeName = "decimal(29, 2)")]
-    public decimal? Total { get; set; }
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal Total { get; set; }
 
-    [ForeignKey("BillId")]
-    [InverseProperty("BillDetails")]
-    public virtual Bill Bill { get; set; } = null!;
+    [ForeignKey("CartId")]
+    [InverseProperty("CartDetails")]
+    public virtual Cart Cart { get; set; } = null!;
 
     [ForeignKey("ProductDetailId")]
-    [InverseProperty("BillDetails")]
+    [InverseProperty("CartDetails")]
     public virtual ProductDetail ProductDetail { get; set; } = null!;
 }

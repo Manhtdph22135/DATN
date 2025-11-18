@@ -69,7 +69,9 @@ function goToAdminDashboard() {
       <!-- Sidebar -->
       <div class="sidebar">
         <div class="logo-container">
-          <img src="@/components/img/logo.png" alt="POLY" class="logo" />
+          <router-link to="/admin/dashboard">
+            <img src="@/components/img/logo.png" alt="POLY" class="logo" />
+          </router-link>
         </div>
         <div class="menu-title">Quản lý</div>
         <ul class="sidebar-menu">

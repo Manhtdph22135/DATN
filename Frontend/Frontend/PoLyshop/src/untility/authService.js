@@ -70,28 +70,51 @@ export const authService = {
   },
 
   // Register method
-  async register(userData) {
-    try {
-      console.log("Register attempt with:", userData);
-      // Transform the userData to match what the backend expects
-      const registerData = {
-        Username: userData.userName,
-        Password: userData.password,
-        ConfirmPassword: userData.confirmPassword,
-        RoleId: 3, // Default to customer role
-      };
+    // authService.js - Centralized authentication service (Chỉ tập trung vào hàm register)
 
-      const response = await axios.post(AUTH_ENDPOINTS.REGISTER, registerData);
-      console.log("Register response:", response.data);
-      return response.data;
+// ... (các đoạn code khác giữ nguyên)
+
+// Register method
+async register(userData) {
+    try {
+        console.log("Register attempt with:", userData);
+        
+        // **ÁNH XẠ DỮ LIỆU ĐỂ GỬI ĐI:**
+        // Đảm bảo tên thuộc tính khớp chính xác với RegisterDto ở Backend (C#)
+        const registerData = {
+            // Account fields
+            Username: userData.userName,
+            Password: userData.password,
+            ConfirmPassword: userData.confirmPassword,
+            RoleId: userData.roleId || 3, // Mặc định là Customer
+
+            // Customer/Personal fields (Phải khớp với RegisterDto: Ho, Ten, Email, Sex, Dob, Address)
+            Ho: userData.ho,
+            Ten: userData.ten,
+            Email: userData.email,
+            Phone: userData.phone, // Dù backend chưa dùng nhưng nên gửi đủ
+            Sex: userData.sex,
+            Dob: userData.dob,
+            Address: userData.address,
+        };
+
+        const response = await axios.post(AUTH_ENDPOINTS.REGISTER, registerData);
+        console.log("Register successful:", response.data);
+        return response.data;
     } catch (error) {
-      console.error(
-        "Register error details:",
-        error.response || error.message || error
-      );
-      throw error;
+        console.error(
+            "Register error details:",
+            error.response || error.message || error
+        );
+        // Trích xuất thông báo lỗi từ ModelState nếu có (thường là mảng các lỗi)
+        const errorMessage = error.response?.data?.message 
+                             || error.response?.data?.errors?.Username?.[0] // Lấy lỗi cụ thể từ Model State
+                             || "Đăng ký thất bại. Vui lòng thử lại.";
+        throw new Error(errorMessage);
     }
-  },
+},
+
+// ... (các đoạn code khác giữ nguyên)
 
   // Save user data to storage
   saveUserData(userData, rememberMe = false) {

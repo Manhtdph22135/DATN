@@ -1,5 +1,8 @@
 ﻿using API.Context;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +16,30 @@ builder.Services.AddDbContext<DbContextShop>(options =>
     options.EnableDetailedErrors();
     options.EnableSensitiveDataLogging();
     options.LogTo(Console.WriteLine, LogLevel.Information);
+});
+// 2. Cấu hình JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!); // Sử dụng ! để đảm bảo không null
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
 });
 
 // Add this before `builder.Build()`

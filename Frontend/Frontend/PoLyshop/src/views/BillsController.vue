@@ -12,7 +12,7 @@ let fetchTimeout = null;
 
 // Cart state
 const cart = ref([]);
-const activeTab = ref("all"); // all, clothing, accessories, etc.
+const activeTab = ref("all");
 const showProductGrid = ref(true);
 const customer = ref(null);
 const paymentMethod = ref("cash");
@@ -25,41 +25,43 @@ const discountAmount = ref(0);
 const orderNote = ref("");
 const currentOrderId = ref("ĐH" + new Date().getTime().toString().slice(-6));
 
-// Replace static categories and products with refs
+// dữ liệu hiển thị trong modal sau khi thanh toán
+const paidTotal = ref(0);
+const paidChange = ref(0);
+const paidOrderCode = ref("");
+const paidPaymentMethod = ref("cash");
+
+// VietQR state
+const vietQrImage = ref("");
+const vietQrLink = ref("");
+const pendingPayload = ref(null);
+
+// categories & products
 const categories = ref([{ id: "all", name: "Tất cả" }]);
 const products = ref([]);
 
-// Replace the static sampleCustomers with reactive ref
-// Removed unused customers variable
-
 const showError = ref(false);
-const errorMessage = ref('');
+const errorMessage = ref("");
 const isLoading = ref(false);
 
-// Computed properties
-const filteredProducts = computed(() => {
-  return products.value;
-});
+// Computed
+const filteredProducts = computed(() => products.value);
 
-const subtotal = computed(() => {
-  return cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0);
-});
+const subtotal = computed(() =>
+  cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0)
+);
 
-const totalItems = computed(() => {
-  return cart.value.reduce((sum, item) => sum + item.quantity, 0);
-});
+const totalItems = computed(() =>
+  cart.value.reduce((sum, item) => sum + item.quantity, 0)
+);
 
-const totalTax = computed(() => {
-  return subtotal.value * 0.08; // 8% VAT
-});
+const totalTax = computed(() => subtotal.value * 0.08);
 
 const totalDiscount = computed(() => {
-  // Calculate both percent and fixed discount
   let percentDiscountValue = 0;
   if (discountPercent.value > 0) {
     percentDiscountValue = (subtotal.value * discountPercent.value) / 100;
   }
-
   return Math.max(percentDiscountValue, discountAmount.value);
 });
 
@@ -68,12 +70,40 @@ const grandTotal = computed(() => {
 });
 
 const changeAmount = computed(() => {
-  return amountReceived.value - grandTotal.value > 0
-    ? amountReceived.value - grandTotal.value
-    : 0;
+  const change = amountReceived.value - grandTotal.value;
+  return change > 0 ? change : 0;
 });
 
-// Methods
+// Helpers: chuẩn hóa dữ liệu sản phẩm
+function asArray(res) {
+  if (Array.isArray(res)) return res;
+  if (res && Array.isArray(res.$values)) return res.$values;
+  if (res && Array.isArray(res.data)) return res.data;
+  return [];
+}
+
+function mapProduct(p) {
+  return {
+    id: p.productId,
+    productDetailId: p.productDetailId ?? null,
+    productName: p.productName,
+    price: p.price,
+    category: p.categoryId ?? null,
+    status: !!p.status,
+    stock: p.stockQuantity ?? 0,
+    image: p.image || "default-product-image.jpg",
+    categoryName: p.categoryName,
+    trademark: p.trademark,
+    materialName: p.materialName,
+    sizeName: p.sizeName,
+    colorName: p.colorName,
+    sizeId: p.sizeId ?? null,
+    colorId: p.colorId ?? null,
+    materialId: p.materialId ?? null,
+  };
+}
+
+// Search sản phẩm
 const fetchProducts = () => {
   clearTimeout(fetchTimeout);
   if (!search.value.trim()) {
@@ -94,43 +124,41 @@ const fetchProducts = () => {
   }, 300);
 };
 
+// Search khách
 const fetchCustomers = async () => {
   const term = customerSearch.value.trim();
   if (!term) {
     customerSuggestions.value = [];
     showCustomerSuggestions.value = false;
-    isLoading.value = false; // tránh kẹt loading nếu return sớm
+    isLoading.value = false;
     return;
   }
 
   isLoading.value = true;
   try {
-    const response = await customerService.getCustomers(); // API của bạn chưa nhận query
+    const response = await customerService.getCustomers();
 
-    // Normalize response to an array in a defensive way (handles Array, { $values: [...] }, { data: [...] }, or other shapes)
-    // Chuẩn hóa dữ liệu khách hàng
     const customersArray = (
       Array.isArray(response)
         ? response
         : response && Array.isArray(response.$values)
-          ? response.$values
-          : response && Array.isArray(response.data)
-            ? response.data
-            : []
-    ).map(c => ({
+        ? response.$values
+        : response && Array.isArray(response.data)
+        ? response.data
+        : []
+    ).map((c) => ({
       customerId: c.customerId || c.id,
       fullname: c.fullname || c.fullName || c.name || "Không rõ tên",
       phone: c.phone || c.phoneNumber || "",
       email: c.email || "",
       address: c.address || "",
       rankMember: c.rankMember || "",
-      point: c.point || 0
+      point: c.point || 0,
     }));
 
-
-    customerSuggestions.value = customersArray.filter(c => {
-      const name = (c.fullname || c.fullName || c.name || '').toLowerCase();
-      const phone = (c.phone || '').toString();
+    customerSuggestions.value = customersArray.filter((c) => {
+      const name = (c.fullname || "").toLowerCase();
+      const phone = (c.phone || "").toString();
       const q = term.toLowerCase();
       return (name && name.includes(q)) || (phone && phone.includes(term));
     });
@@ -139,7 +167,8 @@ const fetchCustomers = async () => {
   } catch (err) {
     console.error(err);
     showError.value = true;
-    errorMessage.value = 'Không thể tải danh sách khách hàng. Vui lòng thử lại.';
+    errorMessage.value =
+      "Không thể tải danh sách khách hàng. Vui lòng thử lại.";
     customerSuggestions.value = [];
     showCustomerSuggestions.value = false;
   } finally {
@@ -147,34 +176,48 @@ const fetchCustomers = async () => {
   }
 };
 
-
-
+// chọn sản phẩm
 const selectProduct = (product) => {
-  if (product.stock <= 0) {
-    alert('Sản phẩm đã hết hàng!');
+  if (!product || typeof product !== "object") {
+    showToast("Sản phẩm không hợp lệ", "danger");
     return;
   }
-  const exist = cart.value.find(i => i.productDetailId === product.productDetailId);
+
+  if (!product.stock || product.stock <= 0) {
+    showToast("Sản phẩm đã hết hàng!", "warning");
+    return;
+  }
+
+  const exist = cart.value.find(
+    (i) => i.productDetailId === product.productDetailId
+  );
   if (exist) {
-    if (exist.quantity < product.stock) exist.quantity += 1;
-    else alert('Số lượng đặt đã đạt tồn kho!');
+    if (exist.quantity < product.stock) {
+      exist.quantity += 1;
+    } else {
+      showToast("Số lượng đặt đã đạt tồn kho!", "warning");
+    }
   } else {
     cart.value.push({
-      id: product.id,                         // productId
-      productDetailId: product.productDetailId,
-      productName: product.productName,
-      price: product.price,
+      id: product.id || null,
+      productDetailId: product.productDetailId || null,
+      productName: product.productName || "Sản phẩm không tên",
+      price: product.price || 0,
       quantity: 1,
-      image: product.image,
-      maxStock: product.stock
+      image: product.image || "default-product-image.jpg",
+      maxStock: product.stock,
+      sizeId: product.sizeId ?? null,
+      colorId: product.colorId ?? null,
+      materialId: product.materialId ?? null,
     });
   }
 
-  // clear search UI
-  search.value = ""; showSuggestions.value = false; suggestions.value = [];
+  search.value = "";
+  showSuggestions.value = false;
+  suggestions.value = [];
 };
 
-// Update the selectCustomer method to match new structure
+// chọn khách
 const selectCustomer = (c) => {
   customer.value = {
     id: c.customerId,
@@ -183,7 +226,7 @@ const selectCustomer = (c) => {
     email: c.email,
     address: c.address,
     rankMember: c.rankMember,
-    point: c.point
+    point: c.point,
   };
   customerSearch.value = "";
   showCustomerSuggestions.value = false;
@@ -194,58 +237,25 @@ const removeCustomer = () => {
 };
 
 const increaseQuantity = (item) => {
-  item.quantity += 1;
+  if (item.quantity < item.maxStock) item.quantity += 1;
 };
 
 const decreaseQuantity = (item) => {
-  if (item.quantity > 1) {
-    item.quantity -= 1;
-  }
+  if (item.quantity > 1) item.quantity -= 1;
 };
 
 const removeItem = (index) => {
   cart.value.splice(index, 1);
 };
 
-// Helper chuẩn hoá và map sản phẩm
-function asArray(res) {
-  if (Array.isArray(res)) return res;
-  if (res && Array.isArray(res.$values)) return res.$values;
-  if (res && Array.isArray(res.data)) return res.data;
-  return [];
-}
-
-function mapProduct(p) {
-  return {
-    id: p.productId,
-    productDetailId: p.productDetailId ?? null, // QUAN TRỌNG cho trừ kho
-    productName: p.productName,
-    price: p.price,
-    category: p.categoryId ?? null,
-    status: !!p.status,
-    stock: p.stockQuantity ?? 0,
-    image: p.image || "default-product-image.jpg",
-
-    // Thuộc tính hiển thị
-    categoryName: p.categoryName,
-    trademark: p.trademark,
-    materialName: p.materialName,
-    sizeName: p.sizeName,
-    colorName: p.colorName,
-
-    // Nếu backend có kèm các ID biến thể, giữ lại để dùng sau
-    sizeId: p.sizeId ?? null,
-    colorId: p.colorId ?? null,
-    materialId: p.materialId ?? null,
-  };
-}
-
+// chọn danh mục
 const selectCategory = async (categoryId) => {
   activeTab.value = categoryId;
   try {
-    const productsData = categoryId === "all"
-      ? await productService.getProducts()
-      : await productService.getProductsByCategory(categoryId);
+    const productsData =
+      categoryId === "all"
+        ? await productService.getProducts()
+        : await productService.getProductsByCategory(categoryId);
 
     products.value = asArray(productsData).map(mapProduct);
   } catch (error) {
@@ -278,11 +288,130 @@ const formatCurrency = (value) => {
     style: "currency",
     currency: "VND",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value ?? 0);
 };
 
+// VietQR
+const generateVietQR = async (amount, orderCode) => {
+  vietQrImage.value = "";
+  vietQrLink.value = "";
+  try {
+    const payload = {
+      accountNo: "19038235614012", // số tài khoản nhận
+      accountName: "TRAN DUC MANH", // tên chủ TK
+      acqId: "970407", // mã ngân hàng - ví dụ Techcombank
+      amount: Math.round(amount),
+      addInfo: `Thanh toan ${orderCode}`,
+      format: "vietqr_net",
+      template: "compact2",
+    };
+
+    const res = await fetch("https://api.vietqr.io/v2/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (data.code === "00" && data.data) {
+      vietQrImage.value = data.data.qrDataURL || "";
+      vietQrLink.value = data.data.qrCode || "";
+    } else {
+      console.error("VietQR error:", data);
+      showToast("Không tạo được mã VietQR", "danger");
+    }
+  } catch (err) {
+    console.error("VietQR error:", err);
+    showToast("Lỗi khi gọi VietQR", "danger");
+  }
+};
+
+// build payload checkout
+const buildCheckoutPayload = () => {
+  return {
+    orderCode: currentOrderId.value,
+    customerId: customer.value?.id || null,
+    cashierId: 1,
+    paymentMethod: paymentMethod.value,
+    amountReceived:
+      paymentMethod.value === "cash"
+        ? amountReceived.value
+        : grandTotal.value,
+    discountAmount: totalDiscount.value,
+    discountPercent: discountPercent.value,
+    note: orderNote.value,
+    items: cart.value.map((i) => ({
+      productDetailId: i.productDetailId,
+      productId: i.id,
+      productName: i.productName,
+      quantity: i.quantity,
+      unitPrice: i.price,
+      totalPrice: i.price * i.quantity,
+      sizeId: i.sizeId ?? null,
+      colorId: i.colorId ?? null,
+      materialId: i.materialId ?? null,
+    })),
+  };
+};
+
+// submit checkout tới API
+const submitCheckout = async (payload) => {
+  const API_BASE = "https://localhost:7055";
+
+  const res = await fetch(`${API_BASE}/api/Checkout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) throw new Error(await res.text());
+
+  const data = await res.json();
+
+  paidTotal.value = data.total ?? grandTotal.value;
+  paidChange.value =
+    data.change ?? Math.max(0, payload.amountReceived - (data.total ?? 0));
+  paidOrderCode.value = data.orderCode ?? payload.orderCode;
+  paidPaymentMethod.value = payload.paymentMethod;
+
+  showToast("Thanh toán thành công! Đã trừ tồn kho.", "success");
+
+  try {
+    await fetchInitialData();
+    await selectCategory(activeTab.value);
+  } catch (err) {
+    console.error("Error reloading categories/products:", err);
+  }
+
+  const qrModal = bootstrap.Modal.getInstance(
+    document.getElementById("vietqrModal")
+  );
+  if (qrModal) qrModal.hide();
+
+  const successModal = new bootstrap.Modal(
+    document.getElementById("paymentSuccessModal")
+  );
+  successModal.show();
+};
+
+// xác nhận đã nhận tiền cho chuyển khoản
+const confirmTransferPayment = async () => {
+  if (!pendingPayload.value) {
+    showToast("Không có đơn hàng chờ thanh toán.", "danger");
+    return;
+  }
+  try {
+    await submitCheckout(pendingPayload.value);
+    pendingPayload.value = null;
+  } catch (e) {
+    console.error(e);
+    showToast("Lỗi khi tạo hóa đơn: " + e.message, "danger");
+  }
+};
+
+// Thanh toán
 const processPayment = async () => {
-  if (selectCustomer && !customer.value) {
+  if (!customer.value) {
     showToast("Vui lòng chọn khách hàng hoặc thêm mới!", "warning");
     return;
   }
@@ -298,67 +427,46 @@ const processPayment = async () => {
       return;
     }
     if (amountReceived.value < grandTotal.value) {
-      showToast("Số tiền khách đưa phải lớn hơn hoặc bằng tổng thanh toán!", "warning");
+      showToast(
+        "Số tiền khách đưa phải lớn hơn hoặc bằng tổng thanh toán!",
+        "warning"
+      );
       return;
     }
   }
 
-  if (!confirm("Xác nhận đã thanh toán và tạo hóa đơn cho đơn hàng này?")) {
+  // kiểm tra productDetailId
+  for (const i of cart.value) {
+    if (!i.productDetailId) {
+      showToast(
+        `Thiếu productDetailId cho sản phẩm "${i.productName}". Vui lòng kiểm tra lại dữ liệu sản phẩm.`,
+        "danger"
+      );
+      return;
+    }
+  }
+
+  if (!confirm("Xác nhận tạo đơn hàng và xử lý thanh toán?")) {
     return;
   }
 
-  // Chuẩn bị dữ liệu gửi API
-  const payload = {
-    orderCode: currentOrderId.value,                        // VD: "ĐH643534"
-    customerId: customer.value?.id || null,
-    cashierId: 1,                                          // TODO: lấy từ user đăng nhập
-    paymentMethod: paymentMethod.value,
-    amountReceived: paymentMethod.value === 'cash'
-      ? amountReceived.value
-      : grandTotal.value,
-    discountAmount: totalDiscount.value,
-    discountPercent: discountPercent.value,
-    note: orderNote.value,
-    items: cart.value.map(i => ({
-      productDetailId: i.productDetailId ?? i.id,
-      productId: i.id,
-      productName: i.productName,
-      quantity: i.quantity,
-      unitPrice: i.price,
-      totalPrice: i.price * i.quantity,
-      sizeId: i.sizeId ?? null,
-      colorId: i.colorId ?? null,
-      materialId: i.materialId ?? null
-    }))
-  };
+  const payload = buildCheckoutPayload();
 
+  // nếu là chuyển khoản thì hiển thị VietQR trước, chưa gọi Checkout
+  if (paymentMethod.value === "transfer") {
+    pendingPayload.value = payload;
+    await generateVietQR(grandTotal.value, currentOrderId.value);
+
+    const qrModal = new bootstrap.Modal(
+      document.getElementById("vietqrModal")
+    );
+    qrModal.show();
+    return;
+  }
+
+  // các phương thức khác: thanh toán ngay
   try {
-    const API_BASE = "https://localhost:7055";
-
-    const res = await fetch(`${API_BASE}/api/Checkout`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) throw new Error(await res.text());
-
-    const data = await res.json();
-    showToast("Thanh toán thành công! Đã trừ tồn kho.", "success");
-
-    grandTotal.value = data.total;  // Lấy tổng từ response
-    changeAmount.value = data.change;  // Lấy tiền thừa từ response
-
-    // hiện modal + reset đơn
-    const modal = new bootstrap.Modal(document.getElementById("paymentSuccessModal"));
-    try {
-      await fetchInitialData();
-      await selectCategory(activeTab.value);
-    } catch (err) {
-      console.error("Error reloading categories/products:", err);
-    }
-    modal.show();
-    startNewOrder();
+    await submitCheckout(payload);
   } catch (e) {
     console.error(e);
     showToast("Lỗi khi xử lý thanh toán: " + e.message, "danger");
@@ -367,7 +475,6 @@ const processPayment = async () => {
 
 // Toast helper
 function showToast(message, type = "info") {
-  // Remove existing toast if any
   const old = document.getElementById("poly-toast");
   if (old) old.remove();
 
@@ -395,7 +502,6 @@ function showToast(message, type = "info") {
 }
 
 const startNewOrder = () => {
-  // Reset all order data
   cart.value = [];
   customer.value = null;
   paymentMethod.value = "cash";
@@ -405,45 +511,32 @@ const startNewOrder = () => {
   orderNote.value = "";
   currentOrderId.value = "ĐH" + new Date().getTime().toString().slice(-6);
 
-  // Close modal if open
+  paidTotal.value = 0;
+  paidChange.value = 0;
+  paidOrderCode.value = "";
+  paidPaymentMethod.value = "cash";
+
   const modal = bootstrap.Modal.getInstance(
     document.getElementById("paymentSuccessModal")
   );
-  if (modal) {
-    modal.hide();
-  }
+  if (modal) modal.hide();
 
-  // Switch view to product grid
   showProductGrid.value = true;
 };
 
 const fetchInitialData = async () => {
   try {
-    // Fetch categories
     const categoriesData = await productService.getCategories();
     categories.value = [
       { id: "all", name: "Tất cả" },
-      ...categoriesData.$values.map((cat) => ({
+      ...asArray(categoriesData).map((cat) => ({
         id: cat.categoryId,
         name: cat.categoryName,
       })),
     ];
-    // Fetch all products
+
     const productsData = await productService.getProducts();
-    products.value = productsData.map((product) => ({
-      id: product.productId,
-      productName: product.productName,
-      price: product.price,
-      category: product.categoryId,
-      status: product.status,
-      stock: product.stockQuantity,
-      image: product.image || "default-product-image.jpg",
-      categoryName: product.categoryName,
-      trademark: product.trademark,
-      materialName: product.materialName,
-      sizeName: product.sizeName,
-      colorName: product.colorName,
-    }));
+    products.value = asArray(productsData).map(mapProduct);
   } catch (error) {
     console.error("Error fetching initial data:", error);
   }
@@ -462,20 +555,31 @@ onMounted(() => {
     </div>
 
     <div class="row">
-      <!-- Left side: Products selection -->
+      <!-- Left: Products -->
       <div class="col-lg-8 mb-4">
         <div class="card shadow-sm">
-          <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+          <div
+            class="card-header bg-white d-flex justify-content-between align-items-center py-3"
+          >
             <ul class="nav nav-pills">
               <li class="nav-item" v-for="category in categories" :key="category.id">
-                <a class="nav-link" :class="{ active: activeTab === category.id }" href="#"
-                  @click.prevent="selectCategory(category.id)">
+                <a
+                  class="nav-link"
+                  :class="{ active: activeTab === category.id }"
+                  href="#"
+                  @click.prevent="selectCategory(category.id)"
+                >
                   {{ category.name }}
                 </a>
               </li>
             </ul>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" v-model="showProductGrid" id="viewToggle" />
+              <input
+                class="form-check-input"
+                type="checkbox"
+                v-model="showProductGrid"
+                id="viewToggle"
+              />
               <label class="form-check-label" for="viewToggle">
                 {{ showProductGrid ? "Hiển thị ô lưới" : "Hiển thị danh sách" }}
               </label>
@@ -488,12 +592,25 @@ onMounted(() => {
               <span class="input-group-text bg-white border-end-0">
                 <i class="bi bi-search"></i>
               </span>
-              <input type="text" class="form-control border-start-0" placeholder="Tìm kiếm sản phẩm theo tên..."
-                v-model="search" @focus="showSuggestions = true" @input="fetchProducts" @blur="hideSuggestions" />
-              <ul v-if="showSuggestions && suggestions.length" class="list-group position-absolute search-suggestions">
-                <li v-for="product in suggestions" :key="product.id"
+              <input
+                type="text"
+                class="form-control border-start-0"
+                placeholder="Tìm kiếm sản phẩm theo tên..."
+                v-model="search"
+                @focus="showSuggestions = true"
+                @input="fetchProducts"
+                @blur="hideSuggestions"
+              />
+              <ul
+                v-if="showSuggestions && suggestions.length"
+                class="list-group position-absolute search-suggestions"
+              >
+                <li
+                  v-for="product in suggestions"
+                  :key="product.id"
                   class="list-group-item list-group-item-action d-flex align-items-center"
-                  @mousedown.prevent="selectProduct(product)">
+                  @mousedown.prevent="selectProduct(product)"
+                >
                   <img :src="product.image" class="product-suggestion-img me-2" />
                   <div>
                     <div>{{ product.productName }}</div>
@@ -506,19 +623,31 @@ onMounted(() => {
             </div>
 
             <!-- Product grid view -->
-            <div v-if="showProductGrid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+            <div
+              v-if="showProductGrid"
+              class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3"
+            >
               <div v-for="product in filteredProducts" :key="product.id" class="col">
-                <div class="card h-100 product-card"
-                  :class="{ 'opacity-50': !product.status, 'pointer-events-none': !product.status }"
+                <div
+                  class="card h-100 product-card"
+                  :class="{
+                    'opacity-50': !product.status,
+                    'pointer-events-none': !product.status,
+                  }"
                   @click="product.status && selectProduct(product)"
-                  :style="!product.status ? 'cursor: not-allowed;' : ''">
-                  <img :src="product.image" class="card-img-top product-img" :alt="product.productName" />
+                  :style="!product.status ? 'cursor: not-allowed;' : ''"
+                >
+                  <img
+                    :src="product.image"
+                    class="card-img-top product-img"
+                    :alt="product.productName"
+                  />
                   <div class="card-body">
                     <h6 class="card-title product-title">
                       {{ product.productName }}
                     </h6>
                     <div class="price">{{ formatCurrency(product.price) }}</div>
-                    <div> Size {{ product.sizeName }}</div>
+                    <div>Size {{ product.sizeName }}</div>
                     <div class="text-muted small">
                       Còn {{ product.stock }} sản phẩm
                     </div>
@@ -551,26 +680,27 @@ onMounted(() => {
                     <td>
                       {{ product.productName }}
                       <small>
-                        <span v-if="product.status" class="badge bg-success">
-                          Đang bán
-                        </span>
-                        <span v-else class="badge bg-secondary">
-                          Ngưng bán
-                        </span>
+                        <span
+                          v-if="product.status"
+                          class="badge bg-success"
+                          >Đang bán</span
+                        >
+                        <span v-else class="badge bg-secondary">Ngưng bán</span>
                       </small>
                     </td>
                     <td>
                       <span class="badge bg-light text-dark">
-                        {{
-                          product.categoryName
-                        }}
+                        {{ product.categoryName }}
                       </span>
                     </td>
                     <td>{{ formatCurrency(product.price) }}</td>
                     <td>{{ product.stock }}</td>
                     <td>
-                      <button class="btn btn-sm btn-primary" @click="selectProduct(product)"
-                        :disabled="!product.status">
+                      <button
+                        class="btn btn-sm btn-primary"
+                        @click="selectProduct(product)"
+                        :disabled="!product.status"
+                      >
                         <i class="bi bi-plus-circle"></i> Thêm
                       </button>
                     </td>
@@ -582,28 +712,42 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Right side: Cart and checkout -->
+      <!-- Right: Cart -->
       <div class="col-lg-4">
         <div class="card shadow-sm">
           <div class="card-header bg-white py-3">
             <div class="d-flex align-items-center justify-content-between">
               <h5 class="mb-0">Giỏ hàng</h5>
-              <span class="badge bg-primary rounded-pill">{{ totalItems }} sản phẩm</span>
+              <span class="badge bg-primary rounded-pill"
+                >{{ totalItems }} sản phẩm</span
+              >
             </div>
 
             <!-- Customer selection -->
             <div class="mt-3 position-relative">
               <div v-if="!customer" class="input-group">
-                <input type="text" class="form-control" placeholder="Tìm kiếm khách hàng..." v-model="customerSearch"
-                  @focus="showCustomerSuggestions = true" @input="fetchCustomers" @blur="hideCustomerSuggestions" />
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="Tìm kiếm khách hàng..."
+                  v-model="customerSearch"
+                  @focus="showCustomerSuggestions = true"
+                  @input="fetchCustomers"
+                  @blur="hideCustomerSuggestions"
+                />
                 <button class="btn btn-outline-secondary" @click="openNewCustomerModal">
                   <i class="bi bi-person-plus"></i>
                 </button>
-                <ul v-if="showCustomerSuggestions && customerSuggestions.length"
-                  class="list-group position-absolute customer-suggestions">
-                  <li v-for="c in customerSuggestions" :key="c.customerId"
+                <ul
+                  v-if="showCustomerSuggestions && customerSuggestions.length"
+                  class="list-group position-absolute customer-suggestions"
+                >
+                  <li
+                    v-for="c in customerSuggestions"
+                    :key="c.customerId"
                     class="list-group-item list-group-item-action suggestion-item d-flex align-items-center"
-                    @mousedown.prevent="selectCustomer(c)">
+                    @mousedown.prevent="selectCustomer(c)"
+                  >
                     <div class="me-2">
                       <i class="bi bi-person-circle fs-4 text-primary"></i>
                     </div>
@@ -611,24 +755,29 @@ onMounted(() => {
                       <div class="fw-semibold">{{ c.fullname }}</div>
                       <div class="small text-muted">
                         {{ c.phone }}
-                        <span v-if="c.rankMember" class="rank-badge">{{ c.rankMember }}</span>
+                        <span
+                          v-if="c.rankMember"
+                          class="rank-badge"
+                          >{{ c.rankMember }}</span
+                        >
                       </div>
                     </div>
-                    <div class="text-end small text-muted">
-                      Chọn
-                    </div>
+                    <div class="text-end small text-muted">Chọn</div>
                   </li>
                 </ul>
               </div>
-              <div v-else
-                class="selected-customer p-2 border rounded d-flex justify-content-between align-items-center">
+              <div
+                v-else
+                class="selected-customer p-2 border rounded d-flex justify-content-between align-items-center"
+              >
                 <div>
-                  <div>
-                    <strong>{{ customer.fullname }}</strong>
-                  </div>
+                  <div><strong>{{ customer.fullname }}</strong></div>
                   <div class="text-muted small">{{ customer.phone }}</div>
                 </div>
-                <button class="btn btn-sm btn-outline-danger" @click="removeCustomer">
+                <button
+                  class="btn btn-sm btn-outline-danger"
+                  @click="removeCustomer"
+                >
                   <i class="bi bi-x"></i>
                 </button>
               </div>
@@ -649,30 +798,41 @@ onMounted(() => {
                     <div class="flex-grow-1">
                       <div class="d-flex justify-content-between align-items-start">
                         <div class="cart-item-name">{{ item.productName }}</div>
-                        <button class="btn btn-sm text-danger" @click="removeItem(index)">
+                        <button
+                          class="btn btn-sm text-danger"
+                          @click="removeItem(index)"
+                        >
                           <i class="bi bi-trash"></i>
                         </button>
                       </div>
-                      <div class="d-flex align-items-center justify-content-between mt-2">
+                      <div
+                        class="d-flex align-items-center justify-content-between mt-2"
+                      >
                         <div class="item-price">
                           {{ formatCurrency(item.price) }}
                         </div>
                         <div class="quantity-controls">
-                          <button class="btn btn-sm btn-outline-secondary" @click="decreaseQuantity(item)"
-                            :disabled="item.quantity <= 1">
+                          <button
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="decreaseQuantity(item)"
+                            :disabled="item.quantity <= 1"
+                          >
                             -
                           </button>
                           <span class="mx-2">{{ item.quantity }}</span>
-                          <button class="btn btn-sm btn-outline-secondary" @click="increaseQuantity(item)"
-                            :disabled="item.quantity >= item.maxStock">
+                          <button
+                            class="btn btn-sm btn-outline-secondary"
+                            @click="increaseQuantity(item)"
+                            :disabled="item.quantity >= item.maxStock"
+                          >
                             +
                           </button>
                         </div>
                       </div>
                       <div class="text-end mt-1">
-                        <span class="fw-bold">{{
-                          formatCurrency(item.price * item.quantity)
-                        }}</span>
+                        <span class="fw-bold">
+                          {{ formatCurrency(item.price * item.quantity) }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -691,19 +851,28 @@ onMounted(() => {
                 <div class="col-6 text-end">{{ formatCurrency(totalTax) }}</div>
               </div>
 
-              <!-- Discount section -->
               <div class="discount-section mb-2 pb-2 border-bottom">
                 <div class="row align-items-center mb-1">
                   <div class="col-6">Giảm giá (%):</div>
                   <div class="col-6">
-                    <input type="number" class="form-control form-control-sm" v-model="discountPercent" min="0"
-                      max="100" />
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      v-model="discountPercent"
+                      min="0"
+                      max="100"
+                    />
                   </div>
                 </div>
                 <div class="row align-items-center">
                   <div class="col-6">Giảm tiền:</div>
                   <div class="col-6">
-                    <input type="number" class="form-control form-control-sm" v-model="discountAmount" min="0" />
+                    <input
+                      type="number"
+                      class="form-control form-control-sm"
+                      v-model="discountAmount"
+                      min="0"
+                    />
                   </div>
                 </div>
                 <div class="row mt-1">
@@ -721,11 +890,13 @@ onMounted(() => {
                 </div>
               </div>
 
-              <!-- Payment options -->
               <div class="row mb-3 align-items-center">
                 <div class="col-5">Phương thức:</div>
                 <div class="col-7">
-                  <select class="form-select form-select-sm" v-model="paymentMethod">
+                  <select
+                    class="form-select form-select-sm"
+                    v-model="paymentMethod"
+                  >
                     <option value="cash">Tiền mặt</option>
                     <option value="card">Thẻ ATM/Visa</option>
                     <option value="transfer">Chuyển khoản</option>
@@ -735,14 +906,24 @@ onMounted(() => {
                 </div>
               </div>
 
-              <div class="row mb-3 align-items-center" v-if="paymentMethod === 'cash'">
+              <div
+                class="row mb-3 align-items-center"
+                v-if="paymentMethod === 'cash'"
+              >
                 <div class="col-5">Tiền khách đưa:</div>
                 <div class="col-7">
-                  <input type="number" class="form-control" v-model="amountReceived" />
+                  <input
+                    type="number"
+                    class="form-control"
+                    v-model="amountReceived"
+                  />
                 </div>
               </div>
 
-              <div class="row mb-3" v-if="paymentMethod === 'cash' && amountReceived > 0">
+              <div
+                class="row mb-3"
+                v-if="paymentMethod === 'cash' && amountReceived > 0"
+              >
                 <div class="col-5">Tiền thừa:</div>
                 <div class="col-7 text-end fw-bold">
                   {{ formatCurrency(changeAmount) }}
@@ -751,12 +932,19 @@ onMounted(() => {
 
               <div class="mb-3">
                 <label class="form-label small">Ghi chú đơn hàng</label>
-                <textarea class="form-control form-control-sm" v-model="orderNote" rows="2"></textarea>
+                <textarea
+                  class="form-control form-control-sm"
+                  v-model="orderNote"
+                  rows="2"
+                ></textarea>
               </div>
 
-              <!-- Checkout button -->
               <div class="d-grid gap-2">
-                <button class="btn btn-primary btn-lg" @click="processPayment" :disabled="cart.length === 0">
+                <button
+                  class="btn btn-primary btn-lg"
+                  @click="processPayment"
+                  :disabled="cart.length === 0"
+                >
                   <i class="bi bi-cash-stack me-2"></i> Thanh toán
                 </button>
               </div>
@@ -766,37 +954,123 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- VietQR Modal -->
+    <div class="modal fade" id="vietqrModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Quét mã VietQR để thanh toán</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body text-center">
+            <p>Đơn hàng #{{ currentOrderId }}</p>
+            <p>
+              Số tiền:
+              <strong>{{ formatCurrency(grandTotal) }}</strong>
+            </p>
+            <div v-if="vietQrImage" class="mb-3">
+              <img
+                :src="vietQrImage"
+                alt="VietQR"
+                class="img-fluid rounded"
+                style="max-width: 260px"
+              />
+            </div>
+            <div v-else class="text-muted small mb-3">
+              Đang tạo mã QR...
+            </div>
+            <!-- <a
+              v-if="vietQrLink"
+              :href="vietQrLink"
+              target="_blank"
+              class="btn btn-outline-primary mb-3"
+            >
+              Mở VietQR
+            </a> 
+            <p class="small text-muted">
+              Sau khi khách đã chuyển khoản thành công, nhấn
+              "Xác nhận đã nhận tiền" để tạo hóa đơn và trừ tồn kho.
+            </p>-->
+          </div>
+          <div class="modal-footer justify-content-between">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              class="btn btn-success"
+              @click="confirmTransferPayment"
+            >
+              Xác nhận đã nhận tiền
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Payment Success Modal -->
-    <div class="modal fade" id="paymentSuccessModal" tabindex="-1" aria-hidden="true">
+    <div
+      class="modal fade"
+      id="paymentSuccessModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header bg-success text-white">
             <h5 class="modal-title">
               <i class="bi bi-check-circle me-2"></i> Thanh toán thành công
             </h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body text-center py-4">
             <i class="bi bi-emoji-smile display-1 text-success mb-3"></i>
-            <h4>Đơn hàng #{{ currentOrderId }} đã được thanh toán</h4>
-            <p class="mb-0">Tổng giá trị: {{ formatCurrency(grandTotal) }}</p>
+            <h4>
+              Đơn hàng #{{
+                paidOrderCode || currentOrderId
+              }} đã được thanh toán
+            </h4>
+            <p class="mb-0">
+              Tổng giá trị: {{ formatCurrency(paidTotal || grandTotal) }}
+            </p>
             <p class="mb-3">
               Phương thức:
               {{
-                paymentMethod === "cash"
+                paidPaymentMethod === "cash"
                   ? "Tiền mặt"
-                  : paymentMethod === "card"
-                    ? "Thẻ ATM/Visa"
-                    : paymentMethod === "transfer"
-                      ? "Chuyển khoản"
-                      : paymentMethod === "momo"
-                        ? "Ví MoMo"
-                        : "VNPay"
+                  : paidPaymentMethod === "card"
+                  ? "Thẻ ATM/Visa"
+                  : paidPaymentMethod === "transfer"
+                  ? "Chuyển khoản"
+                  : paidPaymentMethod === "momo"
+                  ? "Ví MoMo"
+                  : "VNPay"
               }}
             </p>
-            <p class="mb-3">Tiền thừa: {{ formatCurrency(changeAmount) }}</p>
+            <p class="mb-3">
+              Tiền thừa:
+              {{ formatCurrency(paidChange || changeAmount) }}
+            </p>
             <div class="d-flex justify-content-center gap-2">
-              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                data-bs-dismiss="modal"
+              >
                 <i class="bi bi-printer"></i> In hóa đơn
               </button>
               <button type="button" class="btn btn-primary" @click="startNewOrder">
@@ -814,16 +1088,25 @@ onMounted(() => {
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Thêm khách hàng mới</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
           </div>
           <div class="modal-body">
             <form>
               <div class="mb-3">
-                <label class="form-label">Họ và tên <span class="text-danger">*</span></label>
+                <label class="form-label"
+                  >Họ và tên <span class="text-danger">*</span></label
+                >
                 <input type="text" class="form-control" required />
               </div>
               <div class="mb-3">
-                <label class="form-label">Số điện thoại <span class="text-danger">*</span></label>
+                <label class="form-label"
+                  >Số điện thoại <span class="text-danger">*</span></label
+                >
                 <input type="tel" class="form-control" required />
               </div>
               <div class="mb-3">
@@ -837,10 +1120,18 @@ onMounted(() => {
             </form>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
               Hủy
             </button>
-            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-bs-dismiss="modal"
+            >
               Lưu khách hàng
             </button>
           </div>
@@ -961,20 +1252,6 @@ onMounted(() => {
 
 .suggestion-item:hover {
   background-color: #f1f1f1;
-}
-
-.customer-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.customer-name {
-  font-weight: 500;
-}
-
-.customer-details {
-  font-size: 0.875rem;
-  color: #666;
 }
 
 .rank-badge {

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Models;
 
+[Index("AccountId", Name = "IX_Customers_RoleID")]
 [Index("Phone", Name = "UQ__Customer__5C7E359E9B9944BC", IsUnique = true)]
 [Index("Email", Name = "UQ__Customer__A9D10534BCF9D50C", IsUnique = true)]
 public partial class Customer
@@ -43,11 +44,16 @@ public partial class Customer
 
     public int? Point { get; set; }
 
-    [Column("RoleID")]
-    public int RoleId { get; set; }
+    [Column("AccountID")]
+    public int AccountId { get; set; }
+
+    [ForeignKey("AccountId")]
+    [InverseProperty("Customers")]
+    public virtual Role Account { get; set; } = null!;
+
+    [InverseProperty("Customer")]
     public virtual ICollection<Bill> Bills { get; set; } = new List<Bill>();
 
-    [ForeignKey("RoleId")]
-    [InverseProperty("Customers")]
-    public virtual Role Role { get; set; } = null!;
+    [InverseProperty("Customer")]
+    public virtual ICollection<Cart> Carts { get; set; } = new List<Cart>();
 }
