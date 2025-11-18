@@ -1,155 +1,75 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import axios from "axios";
+import { addToCart } from "@/utils/cartStore";
 
-const saleProducts = ref([]);
+// States
+const products = ref([]); // Dữ liệu gốc từ API
+const categories = ref([]); // Danh mục từ API
 const isLoading = ref(true);
 const selectedCategories = ref([]);
-const selectedPriceRange = ref([0, 2000000]);
+const selectedPriceRange = ref([0, 5000000]); // Tăng max range lên chút
 const sortBy = ref("discount"); // discount, priceAsc, priceDesc
 
-// Các nhóm sản phẩm
-const categories = [
-  { id: "tops", name: "Áo" },
-  { id: "bottoms", name: "Quần" },
-  { id: "accessories", name: "Phụ kiện" },
-];
-
-// Mock data cho các sản phẩm khuyến mãi
-const mockSaleProducts = [
-  {
-    id: 1,
-    name: "Áo thun POLY Basic",
-    price: 280000,
-    originalPrice: 350000,
-    discount: 20,
-    image: "https://beobanhbao.vn/wp-content/uploads/2025/04/kiotviet_7d3ff2155976b140a8e98b3c0a998da0.jpg",
-    category: "tops",
-  },
-  {
-    id: 2,
-    name: "Quần jean slim fit",
-    price: 450000,
-    originalPrice: 550000,
-    discount: 18,
-    image: "https://product.hstatic.net/1000210295/product/1r0a0012_edited__1__110e433881124c5b92927fcbb4b05883_master.png",
-    category: "bottoms",
-  },
-  {
-    id: 3,
-    name: "Áo hoodie nỉ Classic",
-    price: 550000,
-    originalPrice: 650000,
-    discount: 15,
-    image: "https://bizweb.dktcdn.net/100/425/004/products/359982484-1012756069750903-82817.jpg?v=1690893059680",
-    category: "tops",
-  },
-  {
-    id: 4,
-    name: "Quần short denim",
-    price: 350000,
-    originalPrice: 420000,
-    discount: 17,
-    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTMjPggCgdji5e2C8q2XnENMtS3NwyECDqHSA&s",
-    category: "bottoms",
-  },
-  {
-    id: 5,
-    name: "Túi đeo chéo mini",
-    price: 240000,
-    originalPrice: 320000,
-    discount: 25,
-    image: "https://bizweb.dktcdn.net/thumb/large/100/360/581/products/tui-deo-cheo-mini-gence-da-bo-mill-td05-1.jpg?v=1733473960853",
-    category: "accessories",
-  },
-  {
-    id: 6,
-    name: "Áo khoác Bomber",
-    price: 750000,
-    originalPrice: 950000,
-    discount: 21,
-    image: "https://product.hstatic.net/200000370449/product/39d5890d348eedd0b49f_56c4e697565743e6bab0e9b3ac51c9c8_master.jpg",
-    category: "tops",
-  },
-  {
-    id: 7,
-    name: "Quần cargo túi hộp",
-    price: 550000,
-    originalPrice: 650000,
-    discount: 15,
-    image: "https://zizoou.com/cdn/shop/files/Quan-tui-hop-kaki-cao-cap-Quan-jogger-unisex-vang-be-khaki-7-1.jpg?v=1698800965",
-    category: "bottoms",
-  },
-  {
-    id: 8,
-    name: "Nón bucket",
-    price: 180000,
-    originalPrice: 240000,
-    discount: 25,
-    image: "https://product.hstatic.net/200000642007/product/50nyd_3ahtd014n_9_c345dc06b3a041ccbe2b4bb66a9d45b4_4f5a8a71810b4deeaf2675d88bd6f177_master.jpg",
-    category: "accessories",
-  },
-  {
-    id: 9,
-    name: "Áo sơ mi cộc tay",
-    price: 320000,
-    originalPrice: 380000,
-    discount: 16,
-    image: "https://product.hstatic.net/1000304105/product/ao-so-mi-nam-den1-t3321c8571__3__a8f44e60eb3e4bad9ccff90d1b0f8445.jpg",
-    category: "tops",
-  },
-  {
-    id: 10,
-    name: "Quần short kaki",
-    price: 320000,
-    originalPrice: 380000,
-    discount: 16,
-    image: "https://product.hstatic.net/1000253775/product/qsid0137_06f8df98b65b4ffe82851bcd5a011ff1_1024x1024.jpg",
-    category: "bottoms",
-  },
-  {
-    id: 11,
-    name: "Vớ cổ cao",
-    price: 60000,
-    originalPrice: 90000,
-    discount: 33,
-    image: "https://down-vn.img.susercontent.com/file/485728c30f1c3dcdfbd6a8e16d6992d6",
-    category: "accessories",
-  },
-  {
-    id: 12,
-    name: "Áo polo trơn",
-    price: 290000,
-    originalPrice: 380000,
-    discount: 24,
-    image: "https://4menshop.com/images/thumbs/2024/09/ao-polo-tron-signature-phoi-day-soc-form-regular-po134-mau-do-do-18712-slide-products-66ebd68b661c8.jpg",
-    category: "tops",
-  },
-];
-
-// Tải sản phẩm khi component được mount
+// 1. TẢI DỮ LIỆU TỪ API
 onMounted(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  saleProducts.value = mockSaleProducts;
-  isLoading.value = false;
+  isLoading.value = true;
+  try {
+    const [prodRes, catRes] = await Promise.all([
+      axios.get("https://localhost:7055/api/Product"),
+      axios.get("https://localhost:7055/api/ProductCategory")
+    ]);
+    
+    // Lưu dữ liệu thô
+    const rawProducts = prodRes.data.$values || prodRes.data || [];
+    categories.value = catRes.data.$values || catRes.data || [];
+
+    // Xử lý dữ liệu sản phẩm (Tính % giảm giá)
+    products.value = rawProducts.map(p => {
+      let discount = 0;
+      // Nếu Backend đã trả về DiscountPercent (từ bảng Promotion), dùng nó
+      if (p.discountPercent) {
+         discount = p.discountPercent;
+      } 
+      // Nếu không, tự tính dựa trên OriginalPrice (nếu có)
+      else if (p.originalPrice && p.originalPrice > p.price) {
+         discount = Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100);
+      }
+
+      return {
+        ...p,
+        // Đảm bảo các trường có tên chuẩn để dùng trong template
+        id: p.productId,
+        name: p.productName,
+        category: p.categoryName, // Dùng tên danh mục để lọc
+        discount: discount,
+        originalPrice: p.originalPrice || p.price // Fallback nếu không có giá gốc
+      };
+    }).filter(p => p.discount > 0); // CHỈ LẤY SẢN PHẨM CÓ GIẢM GIÁ
+
+  } catch (err) {
+    console.error("Lỗi tải dữ liệu Sale:", err);
+  } finally {
+    isLoading.value = false;
+  }
 });
 
-// Lọc sản phẩm
+// 2. BỘ LỌC VÀ SẮP XẾP
 const filteredProducts = computed(() => {
-  let result = [...saleProducts.value];
+  let result = [...products.value];
 
-  // Lọc theo danh mục
+  // Lọc theo danh mục (Dựa trên tên danh mục)
   if (selectedCategories.value.length > 0) {
-    result = result.filter((product) =>
-      selectedCategories.value.includes(product.category)
-    );
+    // selectedCategories chứa ID danh mục
+    // Chúng ta cần tìm tên danh mục tương ứng để so sánh (hoặc lọc theo ID nếu API trả về ID)
+    // Giả sử selectedCategories chứa ID:
+    result = result.filter(p => {
+        // Tìm category object tương ứng với ID đã chọn
+        const catObj = categories.value.find(c => c.categoryId === p.categoryId);
+        // Kiểm tra xem ID danh mục của sản phẩm có nằm trong danh sách đã chọn không
+        return selectedCategories.value.includes(p.categoryId); 
+    });
   }
-
-  // Lọc theo khoảng giá
-  result = result.filter(
-    (product) =>
-      product.price >= selectedPriceRange.value[0] &&
-      product.price <= selectedPriceRange.value[1]
-  );
 
   // Sắp xếp
   if (sortBy.value === "discount") {
@@ -165,6 +85,7 @@ const filteredProducts = computed(() => {
 
 // Format tiền tệ
 function formatCurrency(price) {
+  if (!price) return "0 đ";
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
@@ -182,7 +103,6 @@ function toggleCategory(categoryId) {
   }
 }
 
-// Kiểm tra danh mục đã được chọn chưa
 function isCategorySelected(categoryId) {
   return selectedCategories.value.includes(categoryId);
 }
@@ -261,7 +181,7 @@ function isCategorySelected(categoryId) {
             </div>
 
             <div class="product-actions">
-              <button class="add-to-cart">Thêm vào giỏ</button>
+              <button class="add-to-cart" @click="addToCart(product)">Thêm vào giỏ</button>
               <button class="quick-view">
                 <i class="bi bi-eye"></i>
               </button>

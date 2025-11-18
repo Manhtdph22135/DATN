@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import axios from "axios";
+import { addToCart } from "@/utils/cartStore";
 
 const products = ref([]);
 const error = ref(null);
+const isLoading = ref(true);
 
 onMounted(async () => {
   try {
@@ -14,6 +16,26 @@ onMounted(async () => {
   }
 });
 
+
+const handleAddToCart = (item) => {
+  const cartItem = {
+    productId: item.productId,
+    productName: item.productName,
+    price: item.price,
+    image: item.image,
+    category: item.categoryName || 'Sản phẩm mới',
+    
+    sizeId: item.sizeId, 
+    sizeName: item.sizeName || 'Mặc định',
+    
+    colorId: item.colorId,
+    colorName: item.colorName || 'Mặc định',
+    
+    quantity: 1,
+    selected: true
+  };
+  addToCart(cartItem);
+};
 // Hàm chia mảng thành từng nhóm 4 sản phẩm
 const chunk = (array, size) => {
   const result = [];
@@ -68,7 +90,9 @@ const defaultImage = "../src/components/img/ao1.webp";
                 <div class="card-body text-center">
                   <h5 class="card-title">{{ item.productName }}</h5>
                   <p class="card-text text-danger">{{ item.price }}$</p>
-                  <button class="btn btn-dark">Add to Cart</button>
+                  <button class="btn btn-dark" @click="handleAddToCart(item)">
+                    Thêm vào giỏ
+                  </button>
                 </div>
               </div>
             </div>

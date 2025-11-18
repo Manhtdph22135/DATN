@@ -3,7 +3,7 @@
     <div class="hero-section">
       <div class="hero-content">
         <h1 class="hero-title">NEW SEASON DROP!</h1>
-        <router-link to="/hot"><button class="shop-now-btn">Mua ngay</button></router-link>
+        <router-link to="/sale"><button class="shop-now-btn">Mua ngay</button></router-link>
       </div>
     </div>
 

@@ -187,9 +187,15 @@ public partial class DbContextShop : DbContext
 
         modelBuilder.Entity<Promotion>(entity =>
         {
-            entity.HasKey(e => e.PromotionId).HasName("PK__Promotio__52C42F2FFDC43A8F");
+            entity.ToTable("Promotion");
 
-            entity.Property(e => e.PromotionId).ValueGeneratedNever();
+            entity.Property(e => e.PromotionId)
+                .HasColumnName("PromotionID")
+                .UseIdentityColumn();
+
+
+            entity.Property(e => e.DiscountType).HasMaxLength(50);
+
         });
 
         modelBuilder.Entity<Role>(entity =>

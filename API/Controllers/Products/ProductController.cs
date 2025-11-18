@@ -15,34 +15,70 @@ namespace API.Controllers.Products
         {
             _contextShop = contextShop;
         }
+        
+       
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
         {
+            var today = DateOnly.FromDateTime(DateTime.Now); // Lấy ngày giờ hiện tại
+
             var query = from p in _contextShop.Products
-                join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
-                join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
-                join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
-                join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
-                join co in _contextShop.Colors on pd.ColorId equals co.ColorId
-                //where p.Status == false ? 
-                select new
-                {
-                    p.ProductId,
-                    p.ProductName,
-                    p.Price,
-                    p.CreatedAt,
-                    p.UpdateAt,
-                    p.Status,
-                    pd.ProductDetailId,
-                    pd.StockQuantity,
-                    pd.Image,
-                    c.CategoryName,
-                    c.Trademark,
-                    m.MaterialName,
-                    s.SizeName,
-                    co.ColorName
-                };
-            return Json(query);
+                        join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
+                        join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
+                        join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
+                        join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
+                        join co in _contextShop.Colors on pd.ColorId equals co.ColorId
+
+                        // --- THÊM PHẦN JOIN BẢNG PROMOTION (Left Join) ---
+                        join promo in _contextShop.Promotions on p.ProductId equals promo.ProductId into promoGroup
+                        from pm in promoGroup.DefaultIfEmpty()
+                            // -------------------------------------------------
+
+                        select new
+                        {
+                            p.ProductId,
+                            p.ProductName,
+                            p.CreatedAt,
+                            p.UpdateAt,
+                            p.Status,
+                            pd.ProductDetailId,
+                            pd.StockQuantity,
+                            pd.Image,
+                            c.CategoryName,
+                            c.CategoryId, // ID danh mục
+                            m.MaterialName,
+                            s.SizeName,
+                            s.SizeId,     // ID size
+                            co.ColorName,
+                            co.ColorId,   // ID màu
+
+                            // --- TÍNH TOÁN GIÁ & KHUYẾN MÃI ---
+
+                            // 1. Kiểm tra xem có khuyến mãi hợp lệ không?
+                            // (Phải "Đang hoạt động" và còn trong thời hạn)
+                            IsPromoActive = pm != null
+                                            && pm.Status == "Đang hoạt động"
+                                            && pm.StartDate <= today
+                                            && pm.EndDate >= today,
+
+                            // 2. Giá gốc (Là giá niêm yết trong bảng Product)
+                            OriginalPrice = p.Price,
+
+                            // 3. Giá bán (Nếu có KM thì tính giá giảm, nếu không thì giữ nguyên)
+                            // Giả sử DiscountValue là % (ví dụ 50 nghĩa là 50%)
+                            Price = (pm != null && pm.Status == "Đang hoạt động" && pm.StartDate <= today && pm.EndDate >= today)
+                                    ? p.Price * (100 - pm.DiscountValue) / 100
+                                    : p.Price,
+
+                            // 4. % Giảm giá (Để hiển thị thẻ đỏ -33%)
+                            DiscountPercent = (pm != null && pm.Status == "Đang hoạt động" && pm.StartDate <= today && pm.EndDate >= today)
+                                              ? pm.DiscountValue
+                                              : 0
+                            // ----------------------------------
+                        };
+
+            var result = await query.ToListAsync();
+            return Json(result);
         }
 
         [HttpGet("{id}")]
@@ -71,7 +107,9 @@ namespace API.Controllers.Products
                     m.MaterialName,
                     s.SizeName,
                     co.ColorName
+                    
                 };
+            var result = await query.ToListAsync();
             return Json(query);
         }
         // Fixes: 
@@ -103,6 +141,7 @@ namespace API.Controllers.Products
                             m.MaterialName,
                             s.SizeName,
                             co.ColorName
+                            
                         };
             var result = await query.ToListAsync();
             return Json(result);
@@ -162,6 +201,45 @@ namespace API.Controllers.Products
             }
 
             return Ok("Product and product detail updated successfully.");
+        }
+       
+
+        [HttpGet("Materials")]
+        public async Task<IActionResult> GetMaterials()
+        {
+            var data = await _contextShop.Materials
+                .Select(m => new {
+                    id = m.MaterialId,     // Trả về 'id'
+                    name = m.MaterialName   // Trả về 'name'
+                })
+                .ToListAsync();
+
+            return Ok(data);
+        }
+        [HttpGet("Sizes")] 
+        
+        public async Task<IActionResult> GetSizes()
+        {
+            var data = await _contextShop.Sizes
+                .Select(s => new {
+                    id = s.SizeId,       // Tên là 'id'
+                    name = s.SizeName    // Tên là 'name'
+                })
+                .ToListAsync();
+            return Ok(data);
+        }
+        [HttpGet("Colors")] // Hoặc [HttpGet("Colors")] nếu thêm vào ProductController
+       
+        public async Task<IActionResult> GetColors()
+        {
+            var data = await _contextShop.Colors
+                .Select(c => new {
+                    id = c.ColorId,     // Tên là 'id'
+                    name = c.ColorName // Tên là 'name'
+                      // Giả sử cột mã hex của bạn là ColorCode
+                })
+                .ToListAsync();
+            return Ok(data);
         }
         // POST: api/Product
         [HttpPost]
