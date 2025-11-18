@@ -48,8 +48,8 @@ public partial class Customer
     public int AccountId { get; set; }
 
     [ForeignKey("AccountId")]
-    [InverseProperty("Customers")]
-    public virtual Role Account { get; set; } = null!;
+    //[InverseProperty("Customers")]
+    public virtual Account Account { get; set; } = null!;
 
     [InverseProperty("Customer")]
     public virtual ICollection<Bill> Bills { get; set; } = new List<Bill>();

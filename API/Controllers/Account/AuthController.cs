@@ -6,7 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using BCrypt.Net; // Cần cài đặt package BCrypt.Net.Core
+// using BCrypt.Net; // Đã bỏ thư viện này vì không dùng nữa
 
 namespace API.Controllers.Account
 {
@@ -15,48 +15,100 @@ namespace API.Controllers.Account
     public class AuthController : ControllerBase
     {
         private readonly DbContextShop _contextShop;
-        private readonly IConfiguration _configuration; // Inject IConfiguration
+        private readonly IConfiguration _configuration;
 
-        // Constructor mới để nhận IConfiguration
         public AuthController(DbContextShop contextShop, IConfiguration configuration)
         {
             _contextShop = contextShop;
             _configuration = configuration;
         }
 
-        // ... (Giữ nguyên [HttpGet] GetAccounts và [HttpPost("register")]) ...
-
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
         {
-            // ... (Logic validation như cũ) ...
-
-            if (await _contextShop.Accounts.AnyAsync(a => a.Username == model.Username))
-                return BadRequest(new { message = "Username already exists!" });
+            // 1. Validate dữ liệu cơ bản
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             if (model.Password != model.ConfirmPassword)
-                return BadRequest(new { message = "Passwords do not match!" });
+                return BadRequest(new { message = "Mật khẩu xác nhận không khớp!" });
 
-            // === SỬ DỤNG BCRYPT ĐỂ MÃ HÓA MẬT KHẨU ===
-            string passwordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
+            // 2. Kiểm tra Username đã tồn tại chưa
+            if (await _contextShop.Accounts.AnyAsync(a => a.Username == model.Username))
+                return BadRequest(new { message = "Tên đăng nhập đã tồn tại!" });
 
-            // Tạo Account
-            var newAccount = new Models.Account
+            // 3. Kiểm tra Email hoặc SĐT đã tồn tại trong bảng Customer chưa (tùy chọn, nhưng nên có)
+            if (await _contextShop.Customers.AnyAsync(c => c.Email == model.Email))
+                return BadRequest(new { message = "Email này đã được sử dụng!" });
+
+            // === BẮT ĐẦU TRANSACTION (Giao dịch) ===
+            // Mục đích: Đảm bảo cả Account và Customer cùng được lưu thành công. 
+            // Nếu 1 trong 2 lỗi, toàn bộ sẽ được hoàn tác (Rollback).
+            using var transaction = await _contextShop.Database.BeginTransactionAsync();
+
+            try
             {
-                Username = model.Username,
-                PasswordHash = passwordHash, // Mật khẩu đã được băm
-                RoleId = model.RoleId != 0 ? model.RoleId : 3, // Mặc định là 3 (Customer)
-                CreateAt = DateTime.UtcNow
-            };
+                // --- BƯỚC A: TẠO ACCOUNT ---
+                var newAccount = new Models.Account
+                {
+                    Username = model.Username,
+                    // Lưu password thường (theo yêu cầu của bạn). 
+                    // Nếu sau này muốn mã hóa thì dùng: BCrypt.Net.BCrypt.HashPassword(model.Password)
+                    PasswordHash = model.Password,
+                    RoleId = model.RoleId != 0 ? model.RoleId : 3, // Mặc định là Khách hàng (3)
+                    CreateAt = DateTime.UtcNow
+                };
 
-            // ... (Tạo newCustomer và SaveChangesAsync như cũ) ...
+                _contextShop.Accounts.Add(newAccount);
+                await _contextShop.SaveChangesAsync(); // Lưu ngay để sinh ra AccountId
 
-            return Ok(new { message = "Account registered successfully!" });
+                // --- BƯỚC B: XỬ LÝ NGÀY SINH (DateOnly) ---
+                DateOnly? birthDate = null;
+                if (model.Dob != null)
+                {
+                    // Chuyển đổi từ DateTime (do API nhận) sang DateOnly (DB lưu)
+                    birthDate = DateOnly.FromDateTime(model.Dob.Value);
+                }
+
+                // --- BƯỚC C: TẠO CUSTOMER ---
+                var newCustomer = new Models.Customer
+                {
+                    // Gán AccountId vừa sinh ra ở trên vào đây -> QUAN TRỌNG NHẤT
+                    AccountId = newAccount.AccountId,
+
+                    FullName = $"{model.Ho} {model.Ten}".Trim(),
+                    Email = model.Email,
+                    Phone = model.Phone,
+                    Gender = model.Sex, // true: Nam, false: Nữ
+                    Dob = birthDate,
+                    Address = model.Address,
+                    CreateAt = DateTime.UtcNow,
+
+                    // Các giá trị mặc định khác
+                    RankMember = "Đồng",
+                    Point = 0
+                };
+
+                _contextShop.Customers.Add(newCustomer);
+                await _contextShop.SaveChangesAsync();
+
+                // --- BƯỚC D: HOÀN TẤT ---
+                await transaction.CommitAsync(); // Xác nhận lưu vào DB thật sự
+
+                return Ok(new { message = "Đăng ký tài khoản thành công!" });
+            }
+            catch (Exception ex)
+            {
+                // Nếu có lỗi gì đó, hoàn tác lại việc tạo Account
+                await transaction.RollbackAsync();
+
+                // Ghi log lỗi ra console để debug
+                Console.WriteLine("Lỗi đăng ký: " + ex.Message);
+                return StatusCode(500, new { message = "Lỗi Server khi đăng ký: " + ex.Message });
+            }
         }
 
-
         [HttpPost("login")]
-        // Sử dụng LoginDto để nhận dữ liệu, tránh dùng Models.Account
         public async Task<IActionResult> Login([FromBody] LoginDOT model)
         {
             if (!ModelState.IsValid)
@@ -68,42 +120,38 @@ namespace API.Controllers.Account
             if (account == null)
                 return Unauthorized(new { message = "Invalid username or password!" });
 
-            // === BƯỚC QUAN TRỌNG: XÁC MINH MẬT KHẨU BẰNG BCRYPT ===
-            // So sánh Password người dùng nhập (model.Password) với Hash lưu trong DB (account.PasswordHash)
-            if (!BCrypt.Net.BCrypt.Verify(model.Password, account.PasswordHash))
+            // === THAY ĐỔI 2: SO SÁNH CHUỖI THƯỜNG ===
+            // So sánh thẳng mật khẩu nhập vào với mật khẩu trong DB
+            if (account.PasswordHash != model.Password)
+            {
                 return Unauthorized(new { message = "Invalid username or password!" });
+            }
 
-            // Find the related customer (logic giữ nguyên)
+            // ... Phần tìm Customer và tạo Token giữ nguyên ...
             var customer = await _contextShop.Customers
                 .FirstOrDefaultAsync(c => c.Email == account.Username || c.Phone == account.Username);
 
-            // Generate JWT token
             string tokenString = GenerateJwtToken(account);
 
-            // Return full data for frontend
             return Ok(new
             {
                 message = "Login successful!",
                 token = tokenString,
                 username = account.Username,
-                // Lấy tên nếu tìm thấy customer, nếu không thì dùng Username
                 fullName = customer?.FullName ?? account.Username,
                 roleId = account.RoleId
             });
         }
 
-        // JWT token generation with claims based on role
+        // ... Hàm GenerateJwtToken giữ nguyên ...
         private string GenerateJwtToken(Models.Account account)
         {
-            // Lấy Secret Key từ cấu hình (appsettings.json)
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var keyString = jwtSettings["SecretKey"];
 
-            // Giải quyết lỗi ArgumentNullException: Kiểm tra key
             if (string.IsNullOrEmpty(keyString) || keyString.Length < 16)
             {
-                // Thay vì ném lỗi 500 mơ hồ, ném lỗi rõ ràng hơn
-                throw new InvalidOperationException("JWT Secret Key is missing or too short in appsettings.json.");
+                throw new InvalidOperationException("JWT Secret Key is missing or too short.");
             }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyString));
@@ -112,8 +160,7 @@ namespace API.Controllers.Account
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, account.Username ?? string.Empty),
-                new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
-                // Dùng RoleName nếu bạn có, nếu không thì dùng logic này
+                new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()), // Sửa lại AccountId viết hoa cho đúng chuẩn C# thường dùng
                 new Claim(ClaimTypes.Role, account.RoleId < 3 ? "Admin" : "User"),
                 new Claim("Type", account.RoleId < 3 ? "Admin" : "User")
             };

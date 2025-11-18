@@ -66,6 +66,9 @@ public partial class DbContextShop : DbContext
             entity.HasOne(d => d.Role).WithMany(p => p.Accounts)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK__Accounts__RoleID__123EB7A3");
+
+            // (Tùy chọn) Nếu bạn muốn cấu hình 1-1 chiều ngược lại rõ ràng hơn
+            // entity.HasOne(d => d.Customer).WithOne(p => p.Account).HasForeignKey<Customer>(c => c.AccountId);
         });
 
         modelBuilder.Entity<Bill>(entity =>
@@ -127,12 +130,20 @@ public partial class DbContextShop : DbContext
         {
             entity.HasKey(e => e.CustomerId).HasName("PK__Customer__A4AE64B893D88A52");
 
-            entity.Property(e => e.AccountId).HasDefaultValue(3);
-            entity.Property(e => e.CreateAt).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.Point).HasDefaultValue(0);
-            entity.Property(e => e.RankMember).HasDefaultValue("Bình thường");
+            // 1. Bỏ dòng HasDefaultValue(3) cho AccountId đi. 
+            // Vì mỗi Customer phải gắn với 1 AccountId riêng biệt, không được mặc định.
+            // entity.Property(e => e.AccountId).HasDefaultValue(3); <--- XÓA DÒNG NÀY
 
-            entity.HasOne(d => d.Account).WithMany(p => p.Customers).HasConstraintName("FK_Customers_Roles");
+            entity.Property(e => e.CreateAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.Point).HasDefaultValue(1);
+            entity.Property(e => e.RankMember).HasDefaultValue("Đồng");
+
+            // 2. Sửa quan hệ: Customer nối với Account (1-1)
+            entity.HasOne(d => d.Account)
+                  .WithOne(p => p.Customer) // Quan hệ 1-1 (Một Account có 1 Customer)
+                  .HasForeignKey<Customer>(d => d.AccountId) // Khóa ngoại nằm bên Customer
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_Customers_Accounts"); // Đặt tên mới cho đúng
         });
 
         modelBuilder.Entity<Material>(entity =>

@@ -29,4 +29,6 @@ public partial class Account
     [ForeignKey("RoleId")]
     [InverseProperty("Accounts")]
     public virtual Role? Role { get; set; }
+    //[InverseProperty("Account")]
+    public virtual Customer? Customer { get; set; }
 }
