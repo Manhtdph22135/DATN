@@ -26,38 +26,38 @@ namespace API.Controllers.Bill
             return await _contextShop.Bills.ToListAsync();
         }
 
-        [HttpGet("hoadon")]
-        public async Task<ActionResult<IEnumerable<BillDOT>>> GetBillsBy()
-        {
-            var query = from bd in _contextShop.BillDetails
-                        join b in _contextShop.Bills on bd.BillId equals b.BillId
-                        join c in _contextShop.Customers on b.CustomerId equals c.CustomerId
-                        join s in _contextShop.Staffs on b.StaffId equals s.StaffId
-                        join pd in _contextShop.ProductDetails on bd.ProductDetailId equals pd.ProductDetailId
-                        join p in _contextShop.Products on pd.ProductId equals p.ProductId
-                        join sz in _contextShop.Sizes on pd.SizeId equals sz.SizeId
-                        join clr in _contextShop.Colors on pd.ColorId equals clr.ColorId
-                        join mat in _contextShop.Materials on pd.MaterialId equals mat.MaterialId
-                        select new BillDOT
-                        {
-                            BillID = b.BillId,
-                            Customer = c.FullName,
-                            Staff = s.FullName,
-                            ProductName = p.ProductName,
-                            CusAddress = c.Address,
-                            Phone = c.Phone,
-                            Quantity = bd.Quantity,
-                            UnitPrice = bd.UnitPrice,
-                            Total = (decimal)bd.Total,
-                            Status = b.Status == false ? 0 : 1,
-                            PaymentMethod = b.PaymentMethod,
-                            Size = sz.SizeName,
-                            Color = clr.ColorName,
-                            Material = mat.MaterialName,
-                            Image = pd.Image
-                        };
-            return await query.ToListAsync();
-        }
+            [HttpGet("hoadon")]
+            public async Task<ActionResult<IEnumerable<BillDOT>>> GetBillsBy()
+            {
+                var query = from bd in _contextShop.BillDetails
+                            join b in _contextShop.Bills on bd.BillId equals b.BillId
+                            join c in _contextShop.Customers on b.CustomerId equals c.CustomerId
+                            join s in _contextShop.Staffs on b.StaffId equals s.StaffId
+                            join pd in _contextShop.ProductDetails on bd.ProductDetailId equals pd.ProductDetailId
+                            join p in _contextShop.Products on pd.ProductId equals p.ProductId
+                            join sz in _contextShop.Sizes on pd.SizeId equals sz.SizeId
+                            join clr in _contextShop.Colors on pd.ColorId equals clr.ColorId
+                            join mat in _contextShop.Materials on pd.MaterialId equals mat.MaterialId
+                            select new BillDOT
+                            {
+                                BillID = b.BillId,
+                                Customer = c.FullName,
+                                Staff = s.FullName,
+                                ProductName = p.ProductName,
+                                CusAddress = c.Address,
+                                Phone = c.Phone,
+                                Quantity = bd.Quantity,
+                                UnitPrice = bd.UnitPrice,
+                                Total = (decimal)bd.Total,
+                                Status = b.PaidAt == default(DateTime) ? 0 : 1,
+                                PaymentMethod = b.PaymentMethod,
+                                Size = sz.SizeName,
+                                Color = clr.ColorName,
+                                Material = mat.MaterialName,
+                                Image = pd.Image
+                            };
+                return await query.ToListAsync();
+            }
         //[HttpPost("payment")]
         //public async Task<IActionResult> Payment([FromBody] BillDOT billDOT)
         //{
@@ -102,7 +102,7 @@ namespace API.Controllers.Bill
                             Quantity = bd.Quantity,
                             UnitPrice = bd.UnitPrice,
                             Total = (decimal)bd.Total,
-                            Status = b.Status == false ? 0 : 1,
+                            Status = b.PaidAt == default(DateTime) ? 0 : 1,
                             Size = sz.SizeName,
                             Color = clr.ColorName,
                             Material = mat.MaterialName
@@ -134,7 +134,7 @@ namespace API.Controllers.Bill
                     Quantity = bd.Quantity,
                     UnitPrice = bd.UnitPrice,
                     Total = (decimal)bd.Total,
-                    Status = b.Status == false ? 0 : 1
+                    Status = b.PaidAt == default(DateTime) ? 0 : 1
                 };
             return await query.ToListAsync();
         }
@@ -227,7 +227,7 @@ namespace API.Controllers.Bill
             // Tính TotalAmount = Tổng Total trong BillDetail + Cost trong Transport
             decimal totalBillDetail = await _contextShop.BillDetails
                 .Where(bd => bd.BillId == model.CustomerId) // Giả sử CustomerId chính là BillId
-                .SumAsync(bd => bd.Total ?? 0); // Nếu Total là null, lấy 0
+                .SumAsync(bd => (decimal?)(bd.Total) ?? 0m); // Nếu Total là null, lấy 0m
 
             decimal transportCost = model.TransportId != null
                 ? await _contextShop.Transports
@@ -245,7 +245,6 @@ namespace API.Controllers.Bill
                 CustomerId = model.CustomerId,
                 TransportId = model.TransportId,
                 CreateAt = DateTime.Now,
-                Status = false,
                 TotalAmount = model.TotalAmount
             };
 
@@ -266,6 +265,7 @@ namespace API.Controllers.Bill
                 return NotFound();
             }
 
+
             _contextShop.Bills.Remove(bill);
             await _contextShop.SaveChangesAsync();
 
@@ -275,6 +275,52 @@ namespace API.Controllers.Bill
         private bool BillExists(int id)
         {
             return _contextShop.Bills.Any(e => e.BillId == id);
+        }
+        [HttpGet("hoadon-full")]
+        public async Task<ActionResult<IEnumerable<object>>> GetFullBills()
+        {
+            var bills = await (from b in _contextShop.Bills
+                               join c in _contextShop.Customers on b.CustomerId equals c.CustomerId
+                               join s in _contextShop.Staffs on b.StaffId equals s.StaffId into staffJoin
+                               from s in staffJoin.DefaultIfEmpty()
+                               orderby b.CreateAt descending 
+                               select new
+                               {
+                                   id = b.BillId,
+                                   billId = b.BillId,
+                                   orderCode = b.OrderCode,
+                                   customerName = c.FullName,
+                                   customerPhone = c.Phone,
+                                   customerEmail = c.Email,
+                                   customerAddress = c.Address ?? "",
+                                   subtotal = _contextShop.BillDetails.Where(d => d.BillId == b.BillId).Sum(d => (decimal?)(d.Total) ?? 0m),
+                                   discount = 0, // Add logic if you have discount
+                                   tax = 0, // Add logic if you have tax
+                                   total = b.TotalAmount,
+                                   paymentMethod = b.PaymentMethod,
+                                   status = b.PaidAt <= DateTime.Now ? "paid" : "unpaid",
+                                   createdAt = b.CreateAt,
+                                   paymentDate = b.PaidAt, // Replace with actual payment date if available
+                                   note = "", // Add note if you have
+                                   items = (from bd in _contextShop.BillDetails
+                                            join pd in _contextShop.ProductDetails on bd.ProductDetailId equals pd.ProductDetailId
+                                            join p in _contextShop.Products on pd.ProductId equals p.ProductId
+                                            join sz in _contextShop.Sizes on pd.SizeId equals sz.SizeId
+                                            join clr in _contextShop.Colors on pd.ColorId equals clr.ColorId
+                                            where bd.BillId == b.BillId
+                                            select new
+                                            {
+                                                id = bd.BillDetailId,
+                                                name = p.ProductName,
+                                                price = bd.UnitPrice,
+                                                quantity = bd.Quantity,
+                                                image = pd.Image ?? "",
+                                                color = clr.ColorName,
+                                                size = sz.SizeName
+                                            }).ToList()
+                               }).ToListAsync();
+
+            return bills;
         }
     }
 }

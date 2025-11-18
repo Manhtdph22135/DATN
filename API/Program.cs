@@ -1,5 +1,8 @@
 ﻿using API.Context;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,14 +11,43 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 // Đăng ký DbContext vào DI container
 builder.Services.AddDbContext<DbContextShop>(options =>
-    options.UseSqlServer(connectionString)
-);
+{
+    options.UseSqlServer(connectionString);
+    options.EnableDetailedErrors();
+    options.EnableSensitiveDataLogging();
+    options.LogTo(Console.WriteLine, LogLevel.Information);
+});
+// 2. Cấu hình JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!); // Sử dụng ! để đảm bảo không null
 
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(key)
+    };
+});
+
+// Add this before `builder.Build()`
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowVueApp", policy =>
+    options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5174") // địa chỉ chạy Vite
+        policy.WithOrigins("http://localhost:5173") 
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -42,7 +74,7 @@ if (app.Environment.IsDevelopment())
 }
 
 
-app.UseCors("AllowVueApp");
+app.UseCors("AllowFrontend");
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();

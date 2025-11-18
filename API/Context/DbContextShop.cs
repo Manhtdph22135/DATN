@@ -22,6 +22,10 @@ public partial class DbContextShop : DbContext
 
     public virtual DbSet<BillDetail> BillDetails { get; set; }
 
+    public virtual DbSet<Cart> Carts { get; set; }
+
+    public virtual DbSet<CartDetail> CartDetails { get; set; }
+
     public virtual DbSet<Color> Colors { get; set; }
 
     public virtual DbSet<Customer> Customers { get; set; }
@@ -47,7 +51,8 @@ public partial class DbContextShop : DbContext
     public virtual DbSet<Transport> Transports { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseSqlServer("Data Source=localhost;Initial Catalog=Duantotnghiep;Integrated Security=True;TrustServerCertificate=True");
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseSqlServer("Data Source=localhost;Initial Catalog=DATN;Integrated Security=True;Encrypt=True;TrustServerCertificate=True");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,6 +66,9 @@ public partial class DbContextShop : DbContext
             entity.HasOne(d => d.Role).WithMany(p => p.Accounts)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK__Accounts__RoleID__123EB7A3");
+
+            // (Tùy chọn) Nếu bạn muốn cấu hình 1-1 chiều ngược lại rõ ràng hơn
+            // entity.HasOne(d => d.Customer).WithOne(p => p.Account).HasForeignKey<Customer>(c => c.AccountId);
         });
 
         modelBuilder.Entity<Bill>(entity =>
@@ -68,19 +76,18 @@ public partial class DbContextShop : DbContext
             entity.HasKey(e => e.BillId).HasName("PK__Bills__11F2FC4A635723A7");
 
             entity.Property(e => e.CreateAt).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.Status).HasDefaultValue(true);
 
             entity.HasOne(d => d.Customer).WithMany(p => p.Bills)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK__Bills__CustomerI__619B8048");
+                .HasConstraintName("FK_Bills_Customers");
 
             entity.HasOne(d => d.Staff).WithMany(p => p.Bills)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK__Bills__StaffID__60A75C0F");
+                .HasConstraintName("FK_Bills_Staffs");
 
             entity.HasOne(d => d.Transport).WithMany(p => p.Bills)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK__Bills__Transport__628FA481");
+                .HasConstraintName("FK_Bills_Transports");
         });
 
         modelBuilder.Entity<BillDetail>(entity =>
@@ -89,13 +96,29 @@ public partial class DbContextShop : DbContext
 
             entity.Property(e => e.Total).HasComputedColumnSql("([Quantity]*[UnitPrice])", true);
 
-            entity.HasOne(d => d.Bill).WithMany(p => p.BillDetails)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK__BillDetai__BillI__6E01572D");
+            entity.HasOne(d => d.Bill).WithMany(p => p.BillDetails).HasConstraintName("FK__BillDetai__BillI__6E01572D");
 
-            entity.HasOne(d => d.ProductDetail).WithMany(p => p.BillDetails)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("FK__BillDetai__Produ__6EF57B66");
+            entity.HasOne(d => d.ProductDetail).WithMany(p => p.BillDetails).HasConstraintName("FK__BillDetai__Produ__6EF57B66");
+        });
+
+        modelBuilder.Entity<Cart>(entity =>
+        {
+            entity.HasKey(e => e.CartId).HasName("PK__Carts__5B65BF97D8A6F2E3");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.Customer).WithMany(p => p.Carts).HasConstraintName("FK_Carts_Customers_CustomerId_New");
+        });
+
+        modelBuilder.Entity<CartDetail>(entity =>
+        {
+            entity.HasKey(e => e.CartDetailId).HasName("PK__CartDeta__4E3E04AD8D7C2F1E");
+
+            entity.Property(e => e.Quantity).HasDefaultValue(1);
+
+            entity.HasOne(d => d.Cart).WithMany(p => p.CartDetails).HasConstraintName("FK__CartDeta__CartID__3C69FB99");
+
+            entity.HasOne(d => d.ProductDetail).WithMany(p => p.CartDetails).HasConstraintName("FK__CartDeta__ProductDeta__3D5E1FD2");
         });
 
         modelBuilder.Entity<Color>(entity =>
@@ -107,12 +130,20 @@ public partial class DbContextShop : DbContext
         {
             entity.HasKey(e => e.CustomerId).HasName("PK__Customer__A4AE64B893D88A52");
 
-            entity.Property(e => e.CreateAt).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.Point).HasDefaultValue(0);
-            entity.Property(e => e.RankMember).HasDefaultValue("Bình thường");
-            entity.Property(e => e.RoleId).HasDefaultValue(3);
+            // 1. Bỏ dòng HasDefaultValue(3) cho AccountId đi. 
+            // Vì mỗi Customer phải gắn với 1 AccountId riêng biệt, không được mặc định.
+            // entity.Property(e => e.AccountId).HasDefaultValue(3); <--- XÓA DÒNG NÀY
 
-            entity.HasOne(d => d.Role).WithMany(p => p.Customers).HasConstraintName("FK_Customers_Roles");
+            entity.Property(e => e.CreateAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.Point).HasDefaultValue(1);
+            entity.Property(e => e.RankMember).HasDefaultValue("Đồng");
+
+            // 2. Sửa quan hệ: Customer nối với Account (1-1)
+            entity.HasOne(d => d.Account)
+                  .WithOne(p => p.Customer) // Quan hệ 1-1 (Một Account có 1 Customer)
+                  .HasForeignKey<Customer>(d => d.AccountId) // Khóa ngoại nằm bên Customer
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("FK_Customers_Accounts"); // Đặt tên mới cho đúng
         });
 
         modelBuilder.Entity<Material>(entity =>
@@ -167,9 +198,15 @@ public partial class DbContextShop : DbContext
 
         modelBuilder.Entity<Promotion>(entity =>
         {
-            entity.HasKey(e => e.PromotionId).HasName("PK__Promotio__52C42F2FFDC43A8F");
+            entity.ToTable("Promotion");
 
-            entity.Property(e => e.PromotionId).ValueGeneratedNever();
+            entity.Property(e => e.PromotionId)
+                .HasColumnName("PromotionID")
+                .UseIdentityColumn();
+
+
+            entity.Property(e => e.DiscountType).HasMaxLength(50);
+
         });
 
         modelBuilder.Entity<Role>(entity =>

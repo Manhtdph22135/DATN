@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Models;
 
+[Index("CategoryId", Name = "IX_Products_CategoryID")]
 public partial class Product
 {
     [Key]
@@ -25,7 +26,6 @@ public partial class Product
     public DateTime? CreatedAt { get; set; }
 
     [Column(TypeName = "datetime")]
-
     public DateTime? UpdateAt { get; set; }
 
     public bool? Status { get; set; }

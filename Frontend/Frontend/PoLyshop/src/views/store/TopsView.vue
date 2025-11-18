@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import axios from "axios";
 
-// States
+// States (Giữ nguyên)
 const products = ref([]);
 const isLoading = ref(true);
+const error = ref(null);
 const selectedSort = ref("default");
 const selectedFilters = ref({
   categories: [],
@@ -11,214 +13,179 @@ const selectedFilters = ref({
   colors: [],
   priceRange: [0, 2000000],
 });
+import { addToCart } from "@/utils/cartStore"; // Thêm dòng này
 
-// Filters data
-const filters = {
-  categories: [
-    { id: "tshirt", name: "Áo thun" },
-    { id: "shirt", name: "Áo sơ mi" },
-    { id: "hoodie", name: "Áo hoodie" },
-    { id: "sweater", name: "Áo len" },
-    { id: "jacket", name: "Áo khoác" },
-  ],
-  sizes: ["S", "M", "L", "XL", "XXL"],
-  colors: [
-    { name: "Đen", code: "#000000" },
-    { name: "Trắng", code: "#FFFFFF" },
-    { name: "Xám", code: "#888888" },
-    { name: "Xanh Navy", code: "#000080" },
-    { name: "Xanh lá", code: "#008000" },
-    { name: "Đỏ", code: "#FF0000" },
-  ],
-};
+// 1. TẠO HỘP CHỨA BỘ LỌC ĐỘNG
+const categories = ref([]); // Hộp chứa danh mục từ API
+const sizes = ref([]); // Hộp chứa size từ API
+const colors = ref([]); // Hộp chứa màu từ API
 
-// Mock products
-const mockProducts = [
-  {
-    id: 1,
-    name: "Áo thun POLY Basic",
-    price: 280000,
-    originalPrice: 350000,
-    image: "https://zumifashion.com/Uploads/images/product/item/ao-thun-thoi-trang-ao-thun-polo-zumi-basic-mau-cacao/2fbf753e-7c0d-4e44-8fa2-22c075b6d6d1.jpg",
-    category: "tshirt",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["#000000", "#FFFFFF", "#888888"],
-    isNew: true,
-    isSale: true,
-  },
-  {
-    id: 2,
-    name: "Áo sơ mi trắng dài tay",
-    price: 450000,
-    originalPrice: 450000,
-    image: "https://namfashion.com/home/wp-content/uploads/2018/07/ao-so-mi-trang-nam-dai-tay-xuat-khau-hang-hieu-brice-1.jpg",
-    category: "shirt",
-    sizes: ["S", "M", "L"],
-    colors: ["#FFFFFF"],
-    isNew: false,
-    isSale: false,
-  },
-  {
-    id: 3,
-    name: "Áo hoodie nỉ Classic",
-    price: 550000,
-    originalPrice: 650000,
-    image: "https://bizweb.dktcdn.net/100/425/004/products/359982484-1012756069750903-82817.jpg?v=1690893059680",
-    category: "hoodie",
-    sizes: ["M", "L", "XL"],
-    colors: ["#000000", "#000080", "#888888"],
-    isNew: false,
-    isSale: true,
-  },
-  {
-    id: 4,
-    name: "Áo thun Oversize",
-    price: 320000,
-    originalPrice: 320000,
-    image: "https://pos.nvncdn.com/05016d-25618/ps/20230718_2ixOyFxbNF.png",
-    category: "tshirt",
-    sizes: ["M", "L", "XL", "XXL"],
-    colors: ["#000000", "#FFFFFF", "#FF0000"],
-    isNew: true,
-    isSale: false,
-  },
-  {
-    id: 5,
-    name: "Áo len cổ tròn",
-    price: 480000,
-    originalPrice: 480000,
-    image: "https://product.hstatic.net/1000402464/product/sw23fh04t-la_brown___1__fcfb27f119f34a97a34e552ff5b31b04_master.jpg",
-    category: "sweater",
-    sizes: ["S", "M", "L"],
-    colors: ["#000080", "#888888"],
-    isNew: true,
-    isSale: false,
-  },
-  {
-    id: 6,
-    name: "Áo khoác Bomber",
-    price: 750000,
-    originalPrice: 950000,
-    image: "https://product.hstatic.net/200000370449/product/39d5890d348eedd0b49f_56c4e697565743e6bab0e9b3ac51c9c8_master.jpg",
-    category: "jacket",
-    sizes: ["M", "L", "XL"],
-    colors: ["#000000", "#000080"],
-    isNew: false,
-    isSale: true,
-  },
-  {
-    id: 7,
-    name: "Áo sơ mi kẻ sọc",
-    price: 420000,
-    originalPrice: 420000,
-    image: "https://pos.nvncdn.com/492284-9176/ps/20231204_4c89njBv4K.jpeg",
-    category: "shirt",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["#FFFFFF", "#000080"],
-    isNew: true,
-    isSale: false,
-  },
-  {
-    id: 8,
-    name: "Áo thun Graphic",
-    price: 350000,
-    originalPrice: 350000,
-    image: "https://pos.nvncdn.com/69e708-173581/ps/20250414_O5oxa92e0H.png",
-    category: "tshirt",
-    sizes: ["S", "M", "L"],
-    colors: ["#000000", "#FFFFFF"],
-    isNew: false,
-    isSale: false,
-  },
-];
+// 2. XÓA BỎ HOÀN TOÀN 'const filters' CŨ
 
-// Tải dữ liệu
+// 3. CẬP NHẬT onMounted ĐỂ GỌI 4 API
 onMounted(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  products.value = mockProducts;
-  isLoading.value = false;
+  isLoading.value = true;
+  error.value = null;
+  try {
+    // Gọi 4 API cùng lúc
+    const [
+      productRes, 
+      categoryRes,
+      sizeRes,
+      colorRes
+    ] = await Promise.all([
+      axios.get("https://localhost:7055/api/Product"),
+      axios.get("https://localhost:7055/api/ProductCategory"),
+      axios.get("https://localhost:7055/api/Product/Sizes"), // GỌI API SIZE MỚI
+      axios.get("https://localhost:7055/api/Product/Colors")  // GỌI API MÀU MỚI
+    ]);
+
+    products.value = productRes.data.$values || productRes.data || [];
+    categories.value = categoryRes.data.$values || categoryRes.data || []; 
+    sizes.value = sizeRes.data.$values || sizeRes.data || []; // Đổ size vào
+    colors.value = colorRes.data.$values || colorRes.data || []; // Đổ màu vào
+
+  } catch (err) {
+    console.error(err);
+    error.value = "Đã xảy ra lỗi khi tải dữ liệu.";
+  } finally {
+    isLoading.value = false;
+  }
 });
 
-// Toggle filter
-function toggleFilter(type, value) {
-  const currentFilters = [...selectedFilters.value[type]];
-  const index = currentFilters.indexOf(value);
+// 4. CẬP NHẬT BỘ LỌC ĐỘNG (Đọc từ ref động)
+const displayCategories = computed(() => {
+  if (!products.value) return [];
+  const availableCategoryIds = new Set(products.value.map(p => p.categoryId));
+  // Lấy 'categories' từ ref, và lọc theo trang (Áo/Quần)
+  return categories.value.filter(cat => 
+    availableCategoryIds.has(cat.categoryId) &&
+    cat.categoryName.startsWith("Áo") // <-- Sửa "Áo" thành "Quần" cho trang Quần
+  );
+});
 
-  if (index === -1) {
-    currentFilters.push(value);
-  } else {
-    currentFilters.splice(index, 1);
+const displaySizes = computed(() => {
+  if (!products.value) return [];
+  const availableSizeIds = new Set(products.value.map(p => p.sizeId));
+  // Lấy 'sizes' từ ref
+  return sizes.value.filter(size => availableSizeIds.has(size.id));
+});
+
+const displayColors = computed(() => {
+  if (!products.value) return [];
+  const availableColorIds = new Set(products.value.map(p => p.colorId));
+  // Lấy 'colors' từ ref
+  return colors.value.filter(color => availableColorIds.has(color.id));
+});
+
+
+// 5. CẬP NHẬT filteredProducts (Dùng ID, đơn giản và nhanh)
+const filteredProducts = computed(() => {
+  if (!products.value || products.value.length === 0) {
+    return [];
   }
 
-  selectedFilters.value = {
-    ...selectedFilters.value,
-    [type]: currentFilters,
-  };
-}
+  // --- BƯỚC A: GỘP SẢN PHẨM (Dùng ID) ---
+  const productMap = new Map();
+  for (const item of products.value) {
+    // Đảm bảo API đã trả về các ID
+    if (!item.categoryId || !item.sizeId || !item.colorId) continue; 
 
-// Check if filter is active
-function isFilterActive(type, value) {
-  return selectedFilters.value[type].includes(value);
-}
+    if (!productMap.has(item.productId)) {
+      productMap.set(item.productId, {
+        ...item,
+        categoryIds: new Set(),
+        sizeIds: new Set(),
+        colorIds: new Set()
+      });
+    }
+    const prod = productMap.get(item.productId);
+    prod.categoryIds.add(item.categoryId);
+    prod.sizeIds.add(item.sizeId);
+    prod.colorIds.add(item.colorId);
+  }
+  
+  let result = Array.from(productMap.values()).map(prod => ({
+    ...prod,
+    categoryIds: Array.from(prod.categoryIds),
+    sizeIds: Array.from(prod.sizeIds),
+    colorIds: Array.from(prod.colorIds)
+  }));
+  
+  // --- BƯỚC B: CHẠY BỘ LỌC ---
 
-// Filtered products
-const filteredProducts = computed(() => {
-  let result = [...products.value];
+  // Lấy ra ID của các category thuộc trang "Áo"
+  const pageCategoryIds = categories.value
+    .filter(c => c.categoryName.startsWith("Áo")) // <-- Sửa "Áo" thành "Quần" cho trang Quần
+    .map(c => c.categoryId);
+
+  // Lọc bỏ tất cả sản phẩm không phải là "Áo"
+  result = result.filter(p => p.categoryIds.some(id => pageCategoryIds.includes(id)));
 
   // Filter by category
   if (selectedFilters.value.categories.length > 0) {
     result = result.filter((product) =>
-      selectedFilters.value.categories.includes(product.category)
+      product.categoryIds.some(id => selectedFilters.value.categories.includes(id))
     );
   }
-
+  
   // Filter by size
   if (selectedFilters.value.sizes.length > 0) {
     result = result.filter((product) =>
-      product.sizes.some((size) => selectedFilters.value.sizes.includes(size))
+      product.sizeIds.some(id => selectedFilters.value.sizes.includes(id))
     );
   }
 
   // Filter by color
   if (selectedFilters.value.colors.length > 0) {
     result = result.filter((product) =>
-      product.colors.some((color) =>
-        selectedFilters.value.colors.includes(color)
-      )
+      product.colorIds.some(id => selectedFilters.value.colors.includes(id))
     );
   }
-
-  // Filter by price range
-  result = result.filter(
-    (product) =>
-      product.price >= selectedFilters.value.priceRange[0] &&
-      product.price <= selectedFilters.value.priceRange[1]
-  );
-
-  // Sort
+  
+  // (Logic lọc Price, Sort y hệt như cũ)
+  if (selectedFilters.value.priceRange.length > 0) {
+     result = result.filter(
+      (product) =>
+        product.price >= selectedFilters.value.priceRange[0] &&
+        product.price <= selectedFilters.value.priceRange[1]
+    );
+  }
   if (selectedSort.value === "price-asc") {
-    result.sort((a, b) => a.price - b.price);
+    result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); // Thêm parseFloat
   } else if (selectedSort.value === "price-desc") {
-    result.sort((a, b) => b.price - a.price);
-  } else if (selectedSort.value === "name-asc") {
-    result.sort((a, b) => a.name.localeCompare(b.name));
-  } else if (selectedSort.value === "name-desc") {
-    result.sort((a, b) => b.name.localeCompare(a.name));
+    result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); // Thêm parseFloat
   }
 
   return result;
 });
 
-// Format currency
+
+// 6. GIỮ NGUYÊN CÁC HÀM CÒN LẠI
+function toggleFilter(type, value) {
+  const currentFilters = [...selectedFilters.value[type]];
+  const index = currentFilters.indexOf(value);
+  if (index === -1) {
+    currentFilters.push(value);
+  } else {
+    currentFilters.splice(index, 1);
+  }
+  selectedFilters.value = {
+    ...selectedFilters.value,
+    [type]: currentFilters,
+  };
+}
+function isFilterActive(type, value) {
+  return selectedFilters.value[type].includes(value);
+}
 function formatCurrency(price) {
+  if (typeof price !== 'number') { return price; }
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",
     minimumFractionDigits: 0,
   }).format(price);
 }
-
-// Reset filters
 function resetFilters() {
   selectedFilters.value = {
     categories: [],
@@ -228,37 +195,100 @@ function resetFilters() {
   };
   selectedSort.value = "default";
 }
-
-// Toggle mobile filters
 const showMobileFilters = ref(false);
-
 function toggleMobileFilters() {
   showMobileFilters.value = !showMobileFilters.value;
+}
+const colorNameMap = {
+  // Bạn phải đảm bảo tên ở đây (ví dụ "Đen")
+  // GIỐNG HỆT 100% với tên trong cột 'ColorName' của SQL
+
+  // Màu từ trang Áo
+  "Đen": "#000000",
+  "Trắng": "#FFFFFF",
+  "Xám": "#888888",
+  "Xanh Navy": "#000080",
+  "Xanh lá": "#008000",
+  "Đỏ": "#FF0000",
+  "Xanh Dương": "#0000FF",
+  "Cam": "#FFA500",
+  "Vàng": "#FFFF00",
+  "Hồng": "#FFC0CB",
+  "Tím": "#800080",
+  "Nâu": "#A52A2A",
+  "Be": "#F5F5DC",
+  "Xám": "#808080",
+  
+
+  // Màu từ trang Quần
+  "Xanh đậm": "#000080",
+  "Xanh nhạt": "#87CEFA",
+  "Be": "#F5F5DC",
+
+  // (Nếu có màu khác, bạn tự thêm vào đây)
+};
+// ***** THAY THẾ HÀM CŨ BẰNG HÀM NÀY *****
+function getColorCodeById(id) {
+  if (!colors.value) return '#FFF'; // Trả về nếu chưa tải
+  
+  // 1. Tìm đối tượng màu bằng ID (ví dụ: tìm ID 1)
+  const colorObj = colors.value.find(c => c.id === id);
+  if (!colorObj) return '#FFF'; // Không tìm thấy
+
+  // 2. Lấy TÊN của nó (ví dụ: "Đỏ")
+  const colorName = colorObj.name.trim(); // Lấy tên "Đỏ" và cắt khoảng trắng
+
+  // 3. Dùng tên đó để tra cứu trong "bản đồ"
+  return colorNameMap[colorName] || '#FFF'; // Trả về #FF0000 hoặc màu trắng nếu không có
+}
+// ***** HẾT PHẦN THAY THẾ *****
+
+// Hàm này lấy ID (ví dụ: 1) và trả về tên (ví dụ: "S")
+function getSizeNameById(id) {
+  if (!sizes.value) return '?'; // Trả về '?' nếu 'sizes' (từ API) chưa tải
+  const sizeObj = sizes.value.find(s => s.id === id);
+  return sizeObj ? sizeObj.name : '?'; // Trả về 'S', 'M', 'L'...
+}
+// Thêm hàm này vào script setup
+const handleAddToCart = (product) => {
+  // Tạo một object sản phẩm để thêm vào giỏ
+  // Vì ở trang danh sách chưa chọn size/màu, ta lấy cái đầu tiên hoặc để mặc định
+  const cartItem = {
+    productId: product.productId,
+    productName: product.productName,
+    price: product.price,
+    image: product.image,
+    categoryName: product.categoryName || 'Thời trang',
+    
+    // Logic lấy tên size/màu:
+    // Lấy ID đầu tiên trong mảng sizeIds, sau đó tìm tên của nó
+    sizeId: product.sizeIds && product.sizeIds.length > 0 ? product.sizeIds[0] : null,
+    sizeName: product.sizeIds && product.sizeIds.length > 0 ? getSizeNameById(product.sizeIds[0]) : 'Mặc định',
+    
+    colorId: product.colorIds && product.colorIds.length > 0 ? product.colorIds[0] : null,
+    colorName: product.colorIds && product.colorIds.length > 0 ? getColorNameById(product.colorIds[0]) : 'Mặc định' 
+    // (Bạn cần viết thêm hàm getColorNameById tương tự getSizeNameById nếu chưa có, 
+    // hoặc đơn giản là hardcode tạm nếu muốn test nhanh)
+  };
+
+  addToCart(cartItem);
+};
+
+// Hàm helper lấy tên màu (nếu bạn chưa có)
+function getColorNameById(id) {
+    if (!colors.value) return '?';
+    const colorObj = colors.value.find(c => c.id === id);
+    return colorObj ? colorObj.name : '?';
 }
 </script>
 
 <template>
   <div class="product-page">
     <div class="page-header">
-      <h1>ÁO</h1>
-      <p class="subtitle">Tất cả các mẫu áo mới nhất từ POLY</p>
+      <h1>ÁO</h1> <p class="subtitle">Tất cả các mẫu áo mới nhất từ POLY</p>
     </div>
 
     <div class="product-container">
-      <!-- Mobile filter toggle -->
-      <div class="mobile-filter-toggle">
-        <button @click="toggleMobileFilters">
-          <i class="bi bi-funnel-fill"></i> Bộ lọc
-          <span
-            v-if="Object.values(selectedFilters).flat().length > 0"
-            class="filter-count"
-          >
-            {{ Object.values(selectedFilters).flat().length }}
-          </span>
-        </button>
-      </div>
-
-      <!-- Sidebar filters - Desktop -->
       <div
         class="filter-sidebar"
         :class="{ 'mobile-active': showMobileFilters }"
@@ -270,79 +300,64 @@ function toggleMobileFilters() {
           </button>
         </div>
 
-        <!-- Categories -->
         <div class="filter-section">
-          <h4>Loại áo</h4>
-          <div class="filter-options">
+          <h4>Loại áo</h4> <div class="filter-options">
             <div
-              v-for="category in filters.categories"
-              :key="category.id"
+              v-for="category in displayCategories"
+              :key="category.categoryId"
               class="filter-option"
-              :class="{ active: isFilterActive('categories', category.id) }"
-              @click="toggleFilter('categories', category.id)"
+              :class="{ active: isFilterActive('categories', category.categoryId) }"
+              @click="toggleFilter('categories', category.categoryId)"
             >
-              <span>{{ category.name }}</span>
+              <span>{{ category.categoryName }}</span>
               <i
-                v-if="isFilterActive('categories', category.id)"
+                v-if="isFilterActive('categories', category.categoryId)"
                 class="bi bi-check-lg"
               ></i>
             </div>
           </div>
         </div>
 
-        <!-- Sizes -->
         <div class="filter-section">
-          <h4>Kích thước</h4>
-          <div class="size-options">
-            <div
-              v-for="size in filters.sizes"
-              :key="size"
-              class="size-option"
-              :class="{ active: isFilterActive('sizes', size) }"
-              @click="toggleFilter('sizes', size)"
-            >
-              {{ size }}
-            </div>
-          </div>
-        </div>
+  <h4>Kích thước</h4>
+  <div class="size-options">
+    <div
+      v-for="size in displaySizes" :key="size.id" class="size-option"
+      :class="{ active: isFilterActive('sizes', size.id) }" @click="toggleFilter('sizes', size.id)" >
+      {{ size.name }} </div>
+  </div>
+</div>
 
-        <!-- Colors -->
         <div class="filter-section">
-          <h4>Màu sắc</h4>
-          <div class="color-options">
-            <div
-              v-for="color in filters.colors"
-              :key="color.code"
-              class="color-option"
-              :class="{ active: isFilterActive('colors', color.code) }"
-              @click="toggleFilter('colors', color.code)"
-            >
-              <span
-                class="color-sample"
-                :style="`background-color: ${color.code}`"
-              ></span>
-              <span class="color-name">{{ color.name }}</span>
-            </div>
-          </div>
-        </div>
+  <h4>Màu sắc</h4>
+  <div class="color-options">
+                  <div
+                    v-for="color in displayColors"
+                    :key="color.id"
+                    class="color-option"
+                    :class="{ active: isFilterActive('colors', color.id) }"
+                    @click="toggleFilter('colors', color.id)"
+                  >
+                    <span
+                      class="color-sample"
+                      :style="`background-color: ${colorNameMap[color.name.trim()] || '#FFF'}`"
+                    ></span> <span class="color-name">{{ color.name }}</span>
+                  </div>
+                </div>
+</div>
 
-        <!-- Reset filters -->
         <button class="reset-button" @click="resetFilters">
           <i class="bi bi-arrow-counterclockwise"></i> Xóa bộ lọc
         </button>
       </div>
 
-      <!-- Product list -->
       <div class="product-content">
-        <!-- Sort options -->
         <div class="sort-container">
           <label for="sort">Sắp xếp:</label>
           <select id="sort" v-model="selectedSort" class="sort-select">
             <option value="default">Mặc định</option>
             <option value="price-asc">Giá tăng dần</option>
             <option value="price-desc">Giá giảm dần</option>
-            <option value="name-asc">Tên A-Z</option>
-            <option value="name-desc">Tên Z-A</option>
           </select>
 
           <div class="product-count">
@@ -350,13 +365,16 @@ function toggleMobileFilters() {
           </div>
         </div>
 
-        <!-- Loading state -->
         <div class="loading-container" v-if="isLoading">
           <div class="spinner"></div>
           <p>Đang tải sản phẩm...</p>
         </div>
 
-        <!-- Products grid -->
+        <div class="no-products" v-else-if="error">
+          <i class="bi bi-exclamation-triangle-fill" style="color: red"></i>
+          <p style="color: red">{{ error }}</p>
+        </div>
+
         <div v-else>
           <div v-if="filteredProducts.length === 0" class="no-products">
             <i class="bi bi-exclamation-circle"></i>
@@ -369,11 +387,11 @@ function toggleMobileFilters() {
           <div v-else class="products-grid">
             <div
               v-for="product in filteredProducts"
-              :key="product.id"
+              :key="product.productId"
               class="product-card"
             >
               <div class="product-image">
-                <img :src="product.image" :alt="product.name" />
+                <img :src="product.image" :alt="product.productName" />
                 <div class="product-tags">
                   <span v-if="product.isNew" class="tag new-tag">NEW</span>
                   <span v-if="product.isSale" class="tag sale-tag">SALE</span>
@@ -381,7 +399,8 @@ function toggleMobileFilters() {
               </div>
 
               <div class="product-details">
-                <h3 class="product-name">{{ product.name }}</h3>
+                <h3 class="product-name">{{ product.productName }}</h3>
+                
                 <div class="product-price">
                   <span class="price">{{ formatCurrency(product.price) }}</span>
                   <span
@@ -392,22 +411,28 @@ function toggleMobileFilters() {
                   </span>
                 </div>
 
-                <div class="product-colors">
-                  <div
-                    v-for="color in product.colors"
-                    :key="color"
+                <div class="product-colors" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+                  <span
+                    v-for="colorId in product.colorIds" :key="colorId"
                     class="color-dot"
-                    :style="`background-color: ${color}`"
-                  ></div>
+                    :style="`background-color: ${getColorCodeById(colorId)}; width: 15px; height: 15px; border-radius: 50%; border: 1px solid #ddd; display: inline-block;`"
+                  ></span> </div>
+                <div class="product-card-sizes" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
+                  <span 
+                    v-for="sizeId in product.sizeIds" :key="sizeId" 
+                    style="font-size: 12px; border: 1px solid #ddd; padding: 2px 7px; border-radius: 3px; text-transform: uppercase;"
+                  >
+                    {{ getSizeNameById(sizeId) }} </span>
                 </div>
-              </div>
+                </div>
 
               <div class="product-actions">
-                <button class="add-to-cart">Thêm vào giỏ</button>
-                <button class="quick-view">
-                  <i class="bi bi-eye"></i>
-                </button>
-              </div>
+  <button class="add-to-cart" @click="handleAddToCart(product)">Thêm vào giỏ</button>
+  
+  <button class="quick-view">
+    <i class="bi bi-eye"></i>
+  </button>
+</div>
             </div>
           </div>
         </div>

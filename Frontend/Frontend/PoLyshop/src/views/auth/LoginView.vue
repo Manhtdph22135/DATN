@@ -49,7 +49,6 @@
 </template>
 
 <script>
-import axios from "axios";
 import authService from "@/untility/authService";
 
 export default {
@@ -73,13 +72,7 @@ export default {
       this.errorMessage = "";
 
       try {
-        // Call the real API
-        const response = await axios.post("https://localhost:7055/api/Auth/login", {
-          Username: this.username,
-          PasswordHash: this.password,
-        });
-
-        const loginData = response.data;
+        const loginData = await authService.login(this.username, this.password);
 
         if (loginData && loginData.message === "Login successful!") {
           // Save user data
@@ -100,12 +93,10 @@ export default {
           } else if (error.response.data && error.response.data.message) {
             this.errorMessage = error.response.data.message;
           } else {
-            this.errorMessage =
-              "Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.";
+            this.errorMessage = "Đăng nhập thất bại. Vui lòng kiểm tra thông tin đăng nhập.";
           }
         } else {
-          this.errorMessage =
-            "Không thể kết nối đến máy chủ. Vui lòng thử lại sau.";
+          this.errorMessage = "Không thể kết nối đến máy chủ. Vui lòng thử lại sau.";
         }
       } finally {
         this.isLoading = false;

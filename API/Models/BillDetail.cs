@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Models;
 
+[Index("BillId", Name = "IX_BillDetails_BillID")]
+[Index("ProductDetailId", Name = "IX_BillDetails_ProductDetailID")]
 public partial class BillDetail
 {
     [Key]
@@ -13,10 +15,10 @@ public partial class BillDetail
     public int BillDetailId { get; set; }
 
     [Column("BillID")]
-    public int? BillId { get; set; }
+    public int BillId { get; set; }
 
     [Column("ProductDetailID")]
-    public int? ProductDetailId { get; set; }
+    public int ProductDetailId { get; set; }
 
     public int Quantity { get; set; }
 
@@ -28,9 +30,9 @@ public partial class BillDetail
 
     [ForeignKey("BillId")]
     [InverseProperty("BillDetails")]
-    public virtual Bill? Bill { get; set; }
+    public virtual Bill Bill { get; set; } = null!;
 
     [ForeignKey("ProductDetailId")]
     [InverseProperty("BillDetails")]
-    public virtual ProductDetail? ProductDetail { get; set; }
+    public virtual ProductDetail ProductDetail { get; set; } = null!;
 }
