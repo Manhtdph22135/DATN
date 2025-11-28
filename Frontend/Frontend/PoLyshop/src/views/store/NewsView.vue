@@ -1,81 +1,62 @@
 <script setup>
 import { ref, onMounted } from "vue";
+import { useRouter } from "vue-router";
 
-// Dữ liệu tin tức giả
+const router = useRouter();
 const newsArticles = ref([]);
 const isLoading = ref(true);
+const error = ref(null);
 
-// Giả lập dữ liệu
-const mockNews = [
-  {
-    id: 1,
-    title: "POLY ra mắt bộ sưu tập Hè 2025",
-    summary: "Đón chào mùa hè với BST mới đầy năng động và trẻ trung từ POLY",
-    content:
-      "Hè 2025 đánh dấu sự trở lại mạnh mẽ của POLY với bộ sưu tập mới đầy sáng tạo. Lấy cảm hứng từ những chuyến phiêu lưu mùa hè, BST mang đến những thiết kế tối giản nhưng không kém phần ấn tượng với gam màu tươi sáng, họa tiết độc đáo và chất liệu thoáng mát.",
-    image: "https://cdn.brvn.vn/editor/2023/07/A42_333084-fashion-show-6_1688631273.jpg",
-    date: "2024-05-15",
-    author: "Admin POLY",
-  },
-  {
-    id: 2,
-    title: "Phong cách Y2K đang trở lại",
-    summary: "Xu hướng Y2K đang làm mưa làm gió trong làng thời trang",
-    content:
-      "Phong cách Y2K đình đám những năm 2000 đang quay trở lại mạnh mẽ trong làng thời trang hiện đại. POLY đã nhanh chóng nắm bắt xu hướng này với loạt sản phẩm mới kết hợp giữa hoài niệm Y2K và phong cách đường phố hiện đại. Bạn có thể tìm thấy những chiếc áo crop top, quần baggy, và phụ kiện đậm chất Y2K trong BST mới nhất của chúng tôi.",
-    image: "https://thieuhoa.com.vn/wp-content/uploads/2023/03/BfFzk1NZAuPK0bZMRFLFgS0vIfxHWls0Wne7C4PS.webp",
-    date: "2024-05-10",
-    author: "StylePOLY",
-  },
-  {
-    id: 3,
-    title: "POLY hợp tác với nghệ sĩ local",
-    summary: "Dự án hợp tác độc quyền với các nghệ sĩ đường phố Việt Nam",
-    content:
-      "Với mong muốn quảng bá văn hóa đường phố Việt Nam, POLY vừa công bố dự án hợp tác với 5 nghệ sĩ graffiti nổi tiếng trong nước. Các thiết kế độc quyền này sẽ được in lên những sản phẩm giới hạn của POLY, hứa hẹn mang đến làn gió mới cho thời trang đường phố Việt Nam.",
-    image: "https://img.vietcetera.com/uploads/images/09-oct-2020/untitled-1.jpg",
-    date: "2024-04-28",
-    author: "Creative Team",
-  },
-  {
-    id: 4,
-    title: "POLY cam kết thời trang bền vững",
-    summary:
-      "Chuyển đổi quy trình sản xuất sang hướng thân thiện với môi trường",
-    content:
-      "Hưởng ứng làn sóng thời trang bền vững toàn cầu, POLY đã cam kết chuyển đổi 50% quy trình sản xuất sang sử dụng vật liệu thân thiện với môi trường trước năm 2025. Các sản phẩm thuộc dòng 'POLY Earth' sẽ được làm từ bông organic, polyester tái chế và các vật liệu bền vững khác, đánh dấu bước tiến quan trọng trong hành trình phát triển bền vững của thương hiệu.",
-    image: "https://btnmt.1cdn.vn/2020/06/28/tui-vai-bao-ve-moi-truong.jpg",
-    date: "2024-04-15",
-    author: "Green Team",
-  },
-  {
-    id: 5,
-    title: "Mở rộng cửa hàng POLY tại Cầu Giấy",
-    summary: "Cửa hàng thứ 3 của POLY sẽ khai trương vào tháng 7/2024",
-    content:
-      "Tiếp nối thành công của hai cửa hàng tại Đống Đa và Hà Đông, POLY chính thức công bố kế hoạch mở rộng hệ thống với cửa hàng thứ 3 tại Đà Nẵng. Dự kiến khai trương vào tháng 7/2024, cửa hàng mới sẽ mang đến trải nghiệm mua sắm hoàn toàn mới với không gian thiết kế hiện đại và bộ sưu tập đa dạng phù hợp với phong cách miền Trung.",
-    image: "https://images.squarespace-cdn.com/content/v1/591fd77d29687fd09cca478b/1555546030336-YXVPG30KTCM92JW89UTL/ke17ZwdGBToddI8pDm48kDrQ9tfdcvPUv7NgXGP4R2R7gQa3H78H3Y0txjaiv_0fDoOvxcdMmMKkDsyUqMSsMWxHk725yiiHCCLfrh8O1z4YTzHvnKhyp6Da-NYroOW3ZGjoBKy3azqku80C789l0gmXcXvEVFTLbYX9CdVcGe4zwrosjp5YtnrvbmlM1LFKb7wNXE8lRZ0Z8l5PIsW3Vw/AdobeStock_139559217.jpeg",
-    date: "2024-03-30",
-    author: "Marketing POLY",
-  },
-];
+const fetchNews = async () => {
+  try {
+    console.log('🔄 Đang gọi API News...');
+    const response = await fetch('https://localhost:7055/api/News');
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const data = await response.json();
+    console.log('✅ Data nhận được:', data);
+    
+    // Xử lý response object/array
+    let articles = [];
+    if (Array.isArray(data)) {
+      articles = data;
+    } else if (typeof data === 'object' && data !== null) {
+      if (data.$values && Array.isArray(data.$values)) {
+        articles = data.$values;
+      } else {
+        articles = [data];
+      }
+    }
+    
+    newsArticles.value = articles;
+    error.value = null;
+    
+  } catch (err) {
+    console.error('❌ Lỗi:', err);
+    error.value = err.message;
+    newsArticles.value = [];
+  } finally {
+    isLoading.value = false;
+  }
+};
 
-// Tải dữ liệu khi component được mount
-onMounted(async () => {
-  // Giả lập delay API
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  newsArticles.value = mockNews;
-  isLoading.value = false;
+//Dùng router để điều hướng sang trang chi tiết
+function viewDetail(article) {
+  router.push(`/news/${article.id}`);
+}
+
+onMounted(() => {
+  fetchNews();
 });
 
-// Format ngày
 function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleDateString("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  if (!dateString) return '';
+  try {
+    return new Date(dateString).toLocaleDateString("vi-VN");
+  } catch {
+    return 'Invalid Date';
+  }
 }
 </script>
 
@@ -86,35 +67,50 @@ function formatDate(dateString) {
       <p class="subtitle">Cập nhật những tin tức mới nhất từ POLY</p>
     </div>
 
-    <!-- Loading state -->
+    <!-- Loading -->
     <div class="loading-container" v-if="isLoading">
       <div class="spinner"></div>
       <p>Đang tải tin tức...</p>
     </div>
 
-    <!-- News content -->
-    <div class="news-content" v-else>
-      <!-- Featured article -->
-      <div class="featured-article" v-if="newsArticles.length > 0">
+    <!-- Error -->
+    <div v-if="error && !isLoading" class="error-container">
+      <p>⚠️ {{ error }}</p>
+    </div>
+
+    <!-- No Data -->
+    <div v-if="!isLoading && newsArticles.length === 0" class="no-data">
+      <p>📭 Không có bài viết nào</p>
+    </div>
+
+    <div class="news-content" v-if="!isLoading && newsArticles.length > 0">
+      <!-- Featured Article -->
+      <div 
+        class="featured-article"
+        @click="viewDetail(newsArticles[0])"
+      >
         <div class="featured-image">
-          <img :src="newsArticles[0].image" :alt="newsArticles[0].title" />
+          <img 
+            :src="newsArticles[0].image || 'https://via.placeholder.com/600x400'" 
+            :alt="newsArticles[0].title || 'No title'"
+          />
         </div>
         <div class="featured-content">
-          <span class="article-date">{{
-            formatDate(newsArticles[0].date)
-          }}</span>
-          <h2 class="article-title">{{ newsArticles[0].title }}</h2>
-          <p class="article-summary">{{ newsArticles[0].summary }}</p>
-          <p class="article-text">{{ newsArticles[0].content }}</p>
+          <span class="article-date">
+            {{ formatDate(newsArticles[0].date) }}
+          </span>
+          <h2>{{ newsArticles[0].title || 'Không có tiêu đề' }}</h2>
+          <p class="summary">{{ newsArticles[0].summary || 'Không có mô tả' }}</p>
           <div class="article-author">
             <i class="bi bi-person-circle"></i>
-            <span>{{ newsArticles[0].author }}</span>
+            <span>{{ newsArticles[0].author || 'Không rõ tác giả' }}</span>
           </div>
+          <button class="read-more-btn">Đọc tiếp →</button>
         </div>
       </div>
 
-      <!-- Recent articles -->
-      <div class="recent-articles">
+      <!-- Recent Articles -->
+      <div class="recent-articles" v-if="newsArticles.length > 1">
         <h3 class="section-title">Bài viết gần đây</h3>
 
         <div class="articles-grid">
@@ -122,33 +118,38 @@ function formatDate(dateString) {
             v-for="article in newsArticles.slice(1)"
             :key="article.id"
             class="article-card"
+            @click="viewDetail(article)"
           >
             <div class="article-image">
-              <img :src="article.image" :alt="article.title" />
+              <img 
+                :src="article.image || 'https://via.placeholder.com/350x200'" 
+                :alt="article.title || 'No title'"
+              />
             </div>
             <div class="article-card-content">
               <span class="article-date">{{ formatDate(article.date) }}</span>
-              <h3 class="article-card-title">{{ article.title }}</h3>
-              <p class="article-card-summary">{{ article.summary }}</p>
+              <h3 class="article-card-title">{{ article.title || 'Không có tiêu đề' }}</h3>
+              <p class="article-card-summary">{{ article.summary || 'Không có mô tả' }}</p>
               <div class="article-author">
                 <i class="bi bi-person-circle"></i>
-                <span>{{ article.author }}</span>
+                <span>{{ article.author || 'Không rõ tác giả' }}</span>
               </div>
+              <button class="read-more-btn">Đọc tiếp →</button>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- Newsletter signup -->
-      <div class="newsletter-section">
-        <div class="newsletter-content">
-          <h3>Đăng ký nhận tin</h3>
-          <p>Nhận thông tin về bộ sưu tập mới và khuyến mãi từ POLY</p>
-          <form class="newsletter-form">
-            <input type="email" placeholder="Email của bạn" />
-            <button type="submit" class="subscribe-btn">Đăng ký</button>
-          </form>
-        </div>
+    <!-- NEWSLETTER -->
+    <div class="newsletter-section">
+      <div class="newsletter-content">
+        <h3>Đăng ký nhận tin</h3>
+        <p>Nhận thông tin về bộ sưu tập mới và khuyến mãi từ POLY</p>
+        <form class="newsletter-form">
+          <input type="email" placeholder="Email của bạn" />
+          <button type="submit" class="subscribe-btn">Đăng ký</button>
+        </form>
       </div>
     </div>
   </div>
@@ -175,11 +176,10 @@ function formatDate(dateString) {
   font-size: 16px;
 }
 
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.loading-container, .error-container, .no-data {
+  text-align: center;
   padding: 40px 0;
+  color: #666;
 }
 
 .spinner {
@@ -189,16 +189,12 @@ function formatDate(dateString) {
   border-top: 4px solid #000;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-bottom: 16px;
+  margin: 0 auto 15px;
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .news-content {
@@ -210,13 +206,18 @@ function formatDate(dateString) {
 /* Featured article */
 .featured-article {
   display: flex;
-  flex-direction: column;
   gap: 30px;
   margin-bottom: 60px;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.featured-article:hover {
+  transform: translateY(-5px);
 }
 
 .featured-image {
@@ -232,6 +233,9 @@ function formatDate(dateString) {
 
 .featured-content {
   padding: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .article-date {
@@ -241,24 +245,17 @@ function formatDate(dateString) {
   margin-bottom: 10px;
 }
 
-.article-title {
+.featured-content h2 {
   font-size: 24px;
   margin-bottom: 15px;
   font-weight: 600;
 }
 
-.article-summary {
+.summary {
   font-size: 16px;
   margin-bottom: 20px;
   font-weight: 500;
   color: #333;
-}
-
-.article-text {
-  font-size: 16px;
-  line-height: 1.6;
-  color: #444;
-  margin-bottom: 20px;
 }
 
 .article-author {
@@ -267,6 +264,22 @@ function formatDate(dateString) {
   gap: 8px;
   color: #666;
   font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.read-more-btn {
+  background: #000;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.2s;
+}
+
+.read-more-btn:hover {
+  background: #333;
 }
 
 /* Recent articles */
@@ -289,6 +302,7 @@ function formatDate(dateString) {
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s ease;
+  cursor: pointer;
 }
 
 .article-card:hover {
@@ -381,6 +395,10 @@ function formatDate(dateString) {
   }
 
   .featured-image {
+    width: 50%;
+  }
+  
+  .featured-content {
     width: 50%;
   }
 }
