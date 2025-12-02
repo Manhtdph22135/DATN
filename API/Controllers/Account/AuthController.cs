@@ -22,6 +22,60 @@ namespace API.Controllers.Account
             _contextShop = contextShop;
             _configuration = configuration;
         }
+        [HttpGet("get-account")]
+        public async Task<IActionResult> GetAccounts()
+        {
+            var accounts = await _contextShop.Accounts.Where(r => r.RoleId < 3).ToListAsync();
+            return Ok(accounts);
+        }
+        [HttpPost("add-account-nhanvien")]
+        public async Task<IActionResult> AddAccountNhanVien([FromBody] AccountNhanVienDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var newAcc = new Models.Account
+            {
+                Username = dto.Username,
+                PasswordHash = dto.Password,  // nếu dùng hash thì hash tại đây
+                RoleId = dto.RoleId,
+                CreateAt = DateTime.UtcNow
+            };
+
+            _contextShop.Accounts.Add(newAcc);
+            await _contextShop.SaveChangesAsync();
+
+            return Ok(new { message = "Thêm tài khoản nhân viên thành công!" });
+            return Ok(GetAccounts);
+        }
+        [HttpPut("update-account-nhanvien/{id}")]
+        public async Task<IActionResult> UpdateAccountNhanVien(int id, [FromBody] AccountNhanVienDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var existingAcc = await _contextShop.Accounts.FindAsync(id);
+            if (existingAcc == null)
+                return NotFound(new { message = "Tài khoản không tồn tại!" });
+            existingAcc.Username = dto.Username;
+            existingAcc.PasswordHash = dto.Password; // nếu dùng hash thì hash tại đây
+            existingAcc.RoleId = dto.RoleId;
+            _contextShop.Accounts.Update(existingAcc);
+            await _contextShop.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật tài khoản nhân viên thành công!" });
+            return Ok(GetAccounts);
+        }
+        [HttpDelete("delete-account-nhanvien/{id}")]
+        public async Task<IActionResult> DeleteAccountNhanVien(int id)
+        {
+            var existingAcc = await _contextShop.Accounts.FindAsync(id);
+            if (existingAcc == null)
+                return NotFound(new { message = "Tài khoản không tồn tại!" });
+            _contextShop.Accounts.Remove(existingAcc);
+            await _contextShop.SaveChangesAsync();
+            return Ok(new { message = "Xóa tài khoản nhân viên thành công!" });
+            return Ok(GetAccounts);
+        }
+
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
@@ -40,6 +94,9 @@ namespace API.Controllers.Account
             // 3. Kiểm tra Email hoặc SĐT đã tồn tại trong bảng Customer chưa (tùy chọn, nhưng nên có)
             if (await _contextShop.Customers.AnyAsync(c => c.Email == model.Email))
                 return BadRequest(new { message = "Email này đã được sử dụng!" });
+
+            if(await _contextShop.Customers.AnyAsync(c => c.Phone == model.Phone))
+                return BadRequest(new { message = "Số điện thoại này đã được sử dụng!" });
 
             // === BẮT ĐẦU TRANSACTION (Giao dịch) ===
             // Mục đích: Đảm bảo cả Account và Customer cùng được lưu thành công. 
@@ -86,7 +143,7 @@ namespace API.Controllers.Account
 
                     // Các giá trị mặc định khác
                     RankMember = "Đồng",
-                    Point = 0
+                    Point = 1
                 };
 
                 _contextShop.Customers.Add(newCustomer);
@@ -99,13 +156,21 @@ namespace API.Controllers.Account
             }
             catch (Exception ex)
             {
-                // Nếu có lỗi gì đó, hoàn tác lại việc tạo Account
                 await transaction.RollbackAsync();
 
-                // Ghi log lỗi ra console để debug
-                Console.WriteLine("Lỗi đăng ký: " + ex.Message);
-                return StatusCode(500, new { message = "Lỗi Server khi đăng ký: " + ex.Message });
+                var innerMsg = ex.InnerException?.Message;
+
+                Console.WriteLine("Lỗi đăng ký: " + ex);               // log đầy đủ
+                Console.WriteLine("Inner: " + innerMsg);               // log inner
+
+                return StatusCode(500, new
+                {
+                    message = "Lỗi Server khi đăng ký",
+                    error = ex.Message,
+                    inner = innerMsg
+                });
             }
+
         }
 
         [HttpPost("login")]

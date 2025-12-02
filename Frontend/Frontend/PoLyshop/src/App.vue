@@ -1,6 +1,6 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import authService, { authState } from "./untility/authService";
 import { useRouter } from "vue-router";
 
@@ -26,18 +26,24 @@ function toggleUserDropdown() {
 function closeDropdownOnOutsideClick(event) {
   const dropdown = document.querySelector(".user-menu-dropdown");
   const userIcon = document.querySelector(".user-icon-clickable");
-  if (
-    dropdown &&
-    !dropdown.contains(event.target) &&
-    !userIcon.contains(event.target)
-  ) {
-    showUserDropdown.value = false;
+
+  if (dropdown) {
+    const clickedInsideDropdown = dropdown.contains(event.target);
+    const clickedOnUserIcon = userIcon && userIcon.contains(event.target);
+    if (!clickedInsideDropdown && !clickedOnUserIcon) {
+      showUserDropdown.value = false;
+    }
   }
 }
 
 // Add event listener for outside clicks
 onMounted(() => {
   document.addEventListener("click", closeDropdownOnOutsideClick);
+});
+
+// Remove listener on unmount to avoid leaks
+onUnmounted(() => {
+  document.removeEventListener("click", closeDropdownOnOutsideClick);
 });
 
 // Handle logout
@@ -51,12 +57,12 @@ function logout() {
 function goToAdminDashboard() {
   // Lấy thông tin user hiện tại
   const currentUser = authService.getUserData();
-  
+
   // Kiểm tra quyền bảo mật: Nếu không phải Admin/Nhân viên (roleId < 3) thì chặn lại
   if (!currentUser || (currentUser.roleId && currentUser.roleId >= 3)) {
-      alert("Bạn không có quyền truy cập vào trang quản trị!");
-      showUserDropdown.value = false;
-      return;
+    alert("Bạn không có quyền truy cập vào trang quản trị!");
+    showUserDropdown.value = false;
+    return;
   }
 
   showUserDropdown.value = false;
@@ -112,8 +118,8 @@ function goToAdminDashboard() {
             <router-link to="/admin/hoadon" class="sidebar-link"><i class="bi bi-receipt menu-icon"></i> Hoá
               đơn</router-link>
           </li>
-          
-          </ul>
+
+        </ul>
       </div>
 
       <div class="content-area">
@@ -134,10 +140,11 @@ function goToAdminDashboard() {
                 <router-link to="/account" class="dropdown-item">
                   <i class="bi bi-gear"></i> Tài khoản của tôi
                 </router-link>
-                <router-link to="/orders" class="dropdown-item">
+                <router-link to="/orders" class="dropdown-item" v-if="userData && userData.roleId > 2">
                   <i class="bi bi-bag"></i> Đơn hàng của tôi
                 </router-link>
-                <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard" v-if="userData && userData.roleId < 3">
+                <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard"
+                  v-if="userData && userData.roleId < 3">
                   <i class="bi bi-speedometer2"></i> Quầy
                 </a>
                 <div class="dropdown-divider"></div>
@@ -203,8 +210,9 @@ function goToAdminDashboard() {
               <router-link to="/orders" class="dropdown-item">
                 <i class="bi bi-bag"></i> Đơn hàng của tôi
               </router-link>
-              
-              <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard" v-if="userData && userData.roleId < 3">
+
+              <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard"
+                v-if="userData && userData.roleId < 3">
                 <i class="bi bi-speedometer2"></i> Quầy
               </a>
 
