@@ -45,7 +45,7 @@ const routes = [
   {
     path: "/",
     name: "home",
-    component: HomeView,
+    component: ProductListView,
   },
   {
     path: "/bills",

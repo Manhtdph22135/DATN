@@ -3,6 +3,13 @@ import { ref, onMounted, computed } from "vue";
 import axios from "axios";
 import bootstrap from "@/utils/bootstrapHelper";
 
+const getBootstrap = () => {
+  // prefer the imported helper if it exposes Modal, otherwise fall back to global window.bootstrap
+  if (bootstrap && bootstrap.Modal) return bootstrap;
+  if (typeof window !== "undefined" && window.bootstrap) return window.bootstrap;
+  return null;
+};
+
 const products = ref([]);
 const categories = ref([]);
 // KHAI BÁO MỚI: Dữ liệu động từ API
@@ -182,15 +189,15 @@ const filteredProducts = computed(() => {
 
 // Mở modal thêm mới (Cập nhật default state)
 const openAddModal = () => {
-  isEditing.value = false;
-  isAdding.value = true;
+  const bs = getBootstrap();
+  const modalElement = bs && bs.Modal
+    ? new bs.Modal(document.getElementById("productModal"))
+    : new window.bootstrap.Modal(document.getElementById("productModal"));
+  modalElement.show();
   selectedProduct.value = false;
   currentProduct.value = defaultProductState(); // Dùng hàm default mới
-
+  isAdding.value = true;
   error.value = null;
-
-  const modal = new bootstrap.Modal(document.getElementById("productModal"));
-  modal.show();
 };
 
 // Xem chi tiết (Giữ nguyên)
@@ -417,18 +424,18 @@ const saveProduct = async () => {
       );
     }
 
-    // Refresh product list và đóng modal
-    await fetchProducts();
+    const bs = getBootstrap();
+    const modal = bs && bs.Modal && bs.Modal.getInstance
+      ? bs.Modal.getInstance(document.getElementById("productModal"))
+      : window.bootstrap?.Modal?.getInstance?.(document.getElementById("productModal"));
+    modal && modal.hide();
+    // reload page to reflect saved changes (images and product lists)
+    window.location.reload();
     currentProduct.value = defaultProductState();
     isEditing.value = false;
     selectedProduct.value = false;
     isAdding.value = false;
     error.value = null;
-
-    const modal = bootstrap.Modal.getInstance(
-      document.getElementById("productModal")
-    );
-    modal && modal.hide();
   } catch (err) {
     console.error(err);
     error.value =
@@ -437,7 +444,7 @@ const saveProduct = async () => {
   }
 };
 
-// Xác nhận xóa (Giữ nguyên)
+// Xác nhận xóa sản phẩm
 const confirmDeleteProduct = (product) => {
   currentProduct.value = { ...product }; 
   const modal = new bootstrap.Modal(document.getElementById("deleteModal"));

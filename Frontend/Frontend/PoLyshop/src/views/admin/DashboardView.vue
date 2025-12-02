@@ -12,8 +12,8 @@
           <i class="bi bi-cart-check"></i>
         </div>
         <div class="card-content">
-          <div class="card-value">235</div>
-          <div class="card-label">Đơn hàng mới</div>
+          <div class="card-value">{{ totalOrdersFormatted }}</div>
+          <div class="card-label">Đơn hàng</div>
           <div class="card-trend positive">
             <i class="bi bi-arrow-up"></i> 15%
           </div>
@@ -25,8 +25,8 @@
           <i class="bi bi-currency-dollar"></i>
         </div>
         <div class="card-content">
-          <div class="card-value">78.500.000 VNĐ</div>
-          <div class="card-label">Doanh thu tháng</div>
+          <div class="card-value">{{ totalRevenueFormatted }}</div>
+          <div class="card-label">Doanh thu</div>
           <div class="card-trend positive">
             <i class="bi bi-arrow-up"></i> 23%
           </div>
@@ -38,8 +38,8 @@
           <i class="bi bi-people"></i>
         </div>
         <div class="card-content">
-          <div class="card-value">548</div>
-          <div class="card-label">Khách hàng mới</div>
+          <div class="card-value">{{ totalCustomersFormatted }}</div>
+          <div class="card-label">Khách hàng</div>
           <div class="card-trend positive">
             <i class="bi bi-arrow-up"></i> 8%
           </div>
@@ -51,7 +51,7 @@
           <i class="bi bi-bag-x"></i>
         </div>
         <div class="card-content">
-          <div class="card-value">12</div>
+          <div class="card-value">{{ totalCanceledFormatted }}</div>
           <div class="card-label">Đơn hàng bị hủy</div>
           <div class="card-trend negative">
             <i class="bi bi-arrow-down"></i> 7%
@@ -62,119 +62,79 @@
 
     <!-- Middle Section: Charts -->
     <div class="dashboard-charts">
+      <!-- Doanh thu theo tháng -->
       <div class="chart-container">
         <div class="chart-header">
           <h3 class="chart-title">Doanh thu theo tháng</h3>
           <div class="chart-actions">
-            <select class="chart-select">
-              <option>Năm 2025</option>
-              <option>Năm 2024</option>
+            <select
+              class="chart-select"
+              v-model="selectedYear"
+              @change="fetchMonthlyRevenue"
+            >
+              <option v-for="year in availableYears" :key="year" :value="year">
+                Năm {{ year }}
+              </option>
             </select>
           </div>
         </div>
         <div class="chart-content">
           <div class="chart-mock">
-            <div class="chart-bar active" style="height: 30%">
-              <span class="chart-label">T1</span>
-            </div>
-            <div class="chart-bar active" style="height: 45%">
-              <span class="chart-label">T2</span>
-            </div>
-            <div class="chart-bar active" style="height: 65%">
-              <span class="chart-label">T3</span>
-            </div>
-            <div class="chart-bar active" style="height: 40%">
-              <span class="chart-label">T4</span>
-            </div>
-            <div class="chart-bar" style="height: 55%">
-              <span class="chart-label">T5</span>
-            </div>
-            <div class="chart-bar" style="height: 75%">
-              <span class="chart-label">T6</span>
-            </div>
-            <div class="chart-bar" style="height: 85%">
-              <span class="chart-label">T7</span>
-            </div>
-            <div class="chart-bar" style="height: 60%">
-              <span class="chart-label">T8</span>
-            </div>
-            <div class="chart-bar" style="height: 50%">
-              <span class="chart-label">T9</span>
-            </div>
-            <div class="chart-bar" style="height: 70%">
-              <span class="chart-label">T10</span>
-            </div>
-            <div class="chart-bar" style="height: 65%">
-              <span class="chart-label">T11</span>
-            </div>
-            <div class="chart-bar" style="height: 90%">
-              <span class="chart-label">T12</span>
+            <div
+              v-for="bar in monthlyBars"
+              :key="bar.month"
+              class="chart-bar active"
+              :style="{ height: bar.height + '%' }"
+            >
+              <span class="chart-label">T{{ bar.month }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="chart-container" style="display: flex; flex-direction: column; height: 100%;">
+      <!-- Sản phẩm bán chạy -->
+      <div
+        class="chart-container"
+        style="display: flex; flex-direction: column; height: 100%;"
+      >
         <div class="chart-header">
           <h3 class="chart-title">Sản phẩm bán chạy</h3>
           <div class="chart-actions">
-            <select class="chart-select">
-              <option>Tháng này</option>
-              <option>3 tháng gần đây</option>
+            <select
+              class="chart-select"
+              v-model.number="selectedTop"
+              @change="fetchTopProducts"
+            >
+              <option :value="5">Top 5</option>
+              <option :value="10">Top 10</option>
+              <option :value="20">Top 20</option>
             </select>
           </div>
         </div>
         <div class="chart-content" style="height: auto; display: block;">
           <div class="top-products">
-            <div class="product-item">
-              <div class="product-rank">1</div>
+            <div
+              class="product-item"
+              v-for="(product, index) in topProducts"
+              :key="product.productId"
+            >
+              <div class="product-rank">{{ index + 1 }}</div>
               <div class="product-info">
-                <div class="product-name">Áo Thun Poly Basic</div>
-                <div class="product-sold">Đã bán: 156</div>
+                <div class="product-name">{{ product.productName }}</div>
+                <div class="product-sold">
+                  Đã bán: {{ product.soLuongBan }}
+                </div>
               </div>
               <div class="product-bar-container">
-                <div class="product-bar" style="width: 95%"></div>
+                <div
+                  class="product-bar"
+                  :style="{ width: product.percent + '%' }"
+                ></div>
               </div>
             </div>
-            <div class="product-item">
-              <div class="product-rank">2</div>
-              <div class="product-info">
-                <div class="product-name">Quần Jeans Slim Fit</div>
-                <div class="product-sold">Đã bán: 123</div>
-              </div>
-              <div class="product-bar-container">
-                <div class="product-bar" style="width: 75%"></div>
-              </div>
-            </div>
-            <div class="product-item">
-              <div class="product-rank">3</div>
-              <div class="product-info">
-                <div class="product-name">Áo Khoác Bomber</div>
-                <div class="product-sold">Đã bán: 98</div>
-              </div>
-              <div class="product-bar-container">
-                <div class="product-bar" style="width: 60%"></div>
-              </div>
-            </div>
-            <div class="product-item">
-              <div class="product-rank">4</div>
-              <div class="product-info">
-                <div class="product-name">Áo Sơ Mi Caro</div>
-                <div class="product-sold">Đã bán: 87</div>
-              </div>
-              <div class="product-bar-container">
-                <div class="product-bar" style="width: 55%"></div>
-              </div>
-            </div>
-            <div class="product-item">
-              <div class="product-rank">5</div>
-              <div class="product-info">
-                <div class="product-name">Quần Short Kaki</div>
-                <div class="product-sold">Đã bán: 76</div>
-              </div>
-              <div class="product-bar-container">
-                <div class="product-bar" style="width: 45%"></div>
-              </div>
+
+            <div class="product-item" v-if="topProducts.length === 0">
+              Đang tải dữ liệu sản phẩm bán chạy...
             </div>
           </div>
         </div>
@@ -193,24 +153,24 @@
             </div>
             <div class="action-label">Quản Lý sản phẩm</div>
           </router-link>
-            <router-link to="/admin/donhang" class="action-button">
+          <router-link to="/admin/donhang" class="action-button">
             <div class="action-icon">
               <i class="bi bi-cart-plus"></i>
             </div>
             <div class="action-label">Quản Lý đơn hàng</div>
-            </router-link>
-            <router-link to="/admin/uudai" class="action-button">
+          </router-link>
+          <router-link to="/admin/uudai" class="action-button">
             <div class="action-icon">
               <i class="bi bi-tag"></i>
             </div>
             <div class="action-label">Quản Lý ưu đãi</div>
-            </router-link>
-            <router-link to="/admin/nhanvien" class="action-button">
+          </router-link>
+          <router-link to="/admin/nhanvien" class="action-button">
             <div class="action-icon">
               <i class="bi bi-person-plus"></i>
             </div>
             <div class="action-label">Quản Lý nhân viên</div>
-            </router-link>
+          </router-link>
         </div>
       </div>
 
@@ -235,11 +195,11 @@
           </thead>
           <tbody>
             <tr v-for="order in recentOrders" :key="order.id">
-              <td class="order-id">{{ order.id }}</td>
+              <td class="order-id">{{ order.orderCode }}</td>
               <td>{{ order.customer }}</td>
               <td>{{ order.date }}</td>
               <td>
-                <span :class="'status-badge ' + order.statusClass">
+                <span :class="order.statusClass">
                   {{ order.status }}
                 </span>
               </td>
@@ -266,59 +226,248 @@
 export default {
   name: "AdminDashboardView",
   data() {
+    const currentYear = new Date().getFullYear();
+
     return {
+      // info chung
       currentDate: new Date().toLocaleDateString("vi-VN", {
         weekday: "long",
         year: "numeric",
         month: "long",
         day: "numeric",
       }),
-      recentOrders: [
-        {
-          id: "#ORD-5426",
-          customer: "Phạm Minh Quân",
-          date: "25/08/2023",
-          status: "Đã giao",
-          statusClass: "status-delivered",
-          total: "1.850.000 VNĐ",
-        },
-        {
-          id: "#ORD-5425",
-          customer: "Ngô Thị Hạnh",
-          date: "24/08/2023",
-          status: "Đang xử lý",
-          statusClass: "status-processing",
-          total: "2.150.000 VNĐ",
-        },
-        {
-          id: "#ORD-5424",
-          customer: "Vũ Đức Long",
-          date: "24/08/2023",
-          status: "Đang giao",
-          statusClass: "status-shipping",
-          total: "3.500.000 VNĐ",
-        },
-        {
-          id: "#ORD-5423",
-          customer: "Đặng Thị Mai",
-          date: "23/08/2023",
-          status: "Chờ xác nhận",
-          statusClass: "status-pending",
-          total: "950.000 VNĐ",
-        },
-        {
-          id: "#ORD-5422",
-          customer: "Lý Quốc Bảo",
-          date: "22/08/2023",
-          status: "Đã hủy",
-          statusClass: "status-canceled",
-          total: "1.250.000 VNĐ",
-        },
-      ],
+      recentOrders: [],
+      totalRevenue: 0,
+      totalOrders: 0,
+      totalCustomers: 0,
+      totalCanceled: 0,
+
+      // chart doanh thu theo tháng
+      selectedYear: currentYear,
+      availableYears: [currentYear, currentYear - 1, currentYear - 2],
+      monthlyRevenueRaw: [],   // [{ month, value }]
+
+      // top sản phẩm
+      selectedTop: 5,
+      topProducts: [],
     };
+  },
+  computed: {
+    totalRevenueFormatted() {
+      return this.totalRevenue
+        ? Number(this.totalRevenue).toLocaleString("vi-VN", {
+            style: "currency",
+            currency: "VND",
+            maximumFractionDigits: 0,
+          })
+        : "0 VNĐ";
+    },
+    totalOrdersFormatted() {
+      return this.totalOrders
+        ? Number(this.totalOrders).toLocaleString("vi-VN")
+        : "0";
+    },
+    totalCustomersFormatted() {
+      return this.totalCustomers
+        ? Number(this.totalCustomers).toLocaleString("vi-VN")
+        : "0";
+    },
+    totalCanceledFormatted() {
+      return this.totalCanceled
+        ? Number(this.totalCanceled).toLocaleString("vi-VN")
+        : "0";
+    },
+
+    // dữ liệu cho 12 cột biểu đồ
+    monthlyBars() {
+      const map = new Map();
+      this.monthlyRevenueRaw.forEach((m) =>
+        map.set(m.month, Number(m.value || 0))
+      );
+
+      const months = Array.from({ length: 12 }, (_, i) => i + 1);
+      const values = months.map((m) => map.get(m) || 0);
+      const max = Math.max(...values, 1); // tránh chia 0
+
+      return months.map((month) => {
+        const value = map.get(month) || 0;
+        const height = value > 0 ? 15 + (value / max) * 80 : 5;
+        return { month, value, height };
+      });
+    },
+  },
+  methods: {
+    mapStatusToClass(statusRaw) {
+      const s = (statusRaw || "").toLowerCase();
+      if (s.includes("paid") || s.includes("hoàn thành")) {
+        return "status-badge status-delivered";
+      }
+      if (s.includes("processing") || s.includes("đang xử lý")) {
+        return "status-badge status-processing";
+      }
+      if (s.includes("shipping") || s.includes("đang giao")) {
+        return "status-badge status-shipping";
+      }
+      if (s.includes("pending") || s.includes("chờ")) {
+        return "status-badge status-pending";
+      }
+      if (s.includes("cancel") || s.includes("hủy")) {
+        return "status-badge status-canceled";
+      }
+      return "status-badge status-pending";
+    },
+
+    translateStatus(statusRaw) {
+      const s = (statusRaw || "").toLowerCase();
+      if (s === "paid") return "Đã thanh toán";
+      if (s === "processing") return "Đang xử lý";
+      if (s === "shipping") return "Đang giao";
+      if (s === "pending") return "Chờ xử lý";
+      if (s === "canceled" || s === "cancelled") return "Đã hủy";
+      return statusRaw || "Không rõ";
+    },
+
+    // ================== FETCH TỔNG QUAN ==================
+    async fetchSummaryCards() {
+      const baseUrl = "https://localhost:7055";
+
+      const revenueResponse = await fetch(`${baseUrl}/get-tong-doanh-thu`);
+      const revenueData = await revenueResponse.json();
+      this.totalRevenue = Number(revenueData.tongDoanhThu || 0);
+
+      const ordersResponse = await fetch(`${baseUrl}/get-tong-don-hang`);
+      const ordersData = await ordersResponse.json();
+      this.totalOrders = Number(ordersData.tongDonHang || 0);
+
+      const customersResponse = await fetch(
+        `${baseUrl}/get-tong-khach-hang`
+      );
+      const customersData = await customersResponse.json();
+      this.totalCustomers = Number(customersData.tongKhachHang || 0);
+    },
+
+    // ================== DOANH THU THEO THÁNG ==================
+    async fetchMonthlyRevenue() {
+      const baseUrl = "https://localhost:7055";
+
+      try {
+        const url = `${baseUrl}/get-doanh-thu-theo-thang?year=${this.selectedYear}`;
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          console.error("Lỗi gọi API doanh thu theo tháng:", res.status);
+          this.monthlyRevenueRaw = [];
+          return;
+        }
+
+        const data = await res.json();
+        console.log("Monthly revenue raw:", data);
+
+        const arr = Array.isArray(data) ? data : data.$values || [];
+        this.monthlyRevenueRaw = arr.map((item) => ({
+          month: item.thang,
+          value: item.tongDoanhThu,
+        }));
+      } catch (err) {
+        console.error("Exception khi load doanh thu theo tháng:", err);
+        this.monthlyRevenueRaw = [];
+      }
+    },
+
+    // ================== TOP SẢN PHẨM BÁN CHẠY ==================
+    async fetchTopProducts() {
+      const baseUrl = "https://localhost:7055";
+
+      try {
+        const url = `${baseUrl}/get-san-pham-ban-chay?top=${this.selectedTop}`;
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          console.error("Lỗi gọi API top sản phẩm:", res.status);
+          this.topProducts = [];
+          return;
+        }
+
+        const raw = await res.json();
+        console.log("Top products raw:", raw);
+
+        const arr = Array.isArray(raw) ? raw : raw.$values || [];
+
+        const maxSold = arr.reduce(
+          (max, p) => Math.max(max, Number(p.soLuongBan || 0)),
+          1
+        );
+
+        this.topProducts = arr.map((p) => ({
+          productId: p.productId,
+          productName: p.productName,
+          soLuongBan: p.soLuongBan,
+          percent: 20 + (Number(p.soLuongBan || 0) / maxSold) * 80,
+        }));
+      } catch (err) {
+        console.error("Exception khi load top sản phẩm:", err);
+        this.topProducts = [];
+      }
+    },
+
+    // ================== ĐƠN HÀNG GẦN ĐÂY ==================
+    async fetchRecentOrders() {
+      const baseUrl = "https://localhost:7055";
+
+      const recentOrdersResponse = await fetch(
+        `${baseUrl}/get-don-hang-gan-day?days=30`
+      );
+      const recentOrdersData = await recentOrdersResponse.json();
+      const ordersArray = Array.isArray(recentOrdersData)
+        ? recentOrdersData
+        : recentOrdersData.$values || [];
+
+      this.recentOrders = ordersArray.map((o) => {
+        const created = o.createdAt ? new Date(o.createdAt) : null;
+        return {
+          id: o.id,
+          orderCode: o.orderCode,
+          customer: o.customerName,
+          date: created
+            ? created.toLocaleString("vi-VN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "",
+          status: this.translateStatus(o.status),
+          statusClass: this.mapStatusToClass(o.status),
+          total: Number(o.total || 0).toLocaleString("vi-VN", {
+            style: "currency",
+            currency: "VND",
+            maximumFractionDigits: 0,
+          }),
+        };
+      });
+    },
+
+    // ================== LOAD TẤT CẢ ==================
+    async fetchData() {
+      try {
+        await Promise.all([
+          this.fetchSummaryCards(),
+          this.fetchMonthlyRevenue(),
+          this.fetchTopProducts(),
+          this.fetchRecentOrders(),
+        ]);
+      } catch (err) {
+        console.error("Error fetching dashboard data:", err);
+      }
+    },
+  },
+  mounted() {
+    this.fetchData();
   },
 };
 </script>
+
 
 <style scoped>
 .admin-page {
@@ -581,6 +730,7 @@ export default {
   cursor: pointer;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
+
 .action-button:hover {
   transform: translateY(-5px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
@@ -718,7 +868,6 @@ export default {
 
 /* Responsive Adjustments */
 @media (max-width: 1200px) {
-
   .dashboard-cards,
   .dashboard-charts {
     grid-template-columns: repeat(2, 1fr);
@@ -726,7 +875,6 @@ export default {
 }
 
 @media (max-width: 768px) {
-
   .dashboard-cards,
   .dashboard-charts {
     grid-template-columns: 1fr;
