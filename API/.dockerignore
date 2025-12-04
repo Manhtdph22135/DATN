@@ -1,0 +1,9 @@
+# Loại trừ các thư mục build cục bộ
+**/bin/
+**/obj/
+
+# Loại trừ các file cấu hình và hệ thống
+.vs/
+.git/
+.gitignore
+appsettings*.Development.json
