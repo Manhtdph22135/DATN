@@ -29,6 +29,7 @@
               <option value="silver">Thành viên Bạc</option>
               <option value="gold">Thành viên Vàng</option>
               <option value="platinum">Thành viên Bạch Kim</option>
+              <option value="diamond">Thành viên Kim cương</option>
             </select>
           </div>
           <div class="status-filter">
@@ -71,7 +72,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(customer, index) in filteredCustomers.$values" :key="customer.id">
+            <tr v-for="(customer, index) in filteredCustomers" :key="customer.id">
               <td>{{ index + 1 }}</td>
               <td>{{ customer.fullName }}</td>
               <td>{{ customer.email }}</td>
@@ -202,6 +203,7 @@
                     <option value="silver">Thành viên Bạc</option>
                     <option value="gold">Thành viên Vàng</option>
                     <option value="platinum">Thành viên Bạch Kim</option>
+                    <option value="diamond">Thành viên Kim cương</option>
                   </select>
                 </div>
                 <div class="col-md-6">
@@ -476,7 +478,24 @@ export default {
       try {
         loading.value = true;
         const response = await customerApi.get("/Customer");
-        customers.value = response.data;
+        const rawData = response.data.$values || response.data;
+        customers.value = rawData.map((item) => ({
+          id: item.customerId,
+          fullName: item.fullName,
+          email: item.email,
+          phone: item.phone,
+          birthday: item.dob,
+          address: item.address,
+          membership: item.rankMember?.toLowerCase() || "bronze",
+          status: item.status || "active",
+          registerDate: item.createAt,
+          orderCount: item.bills?.$values?.length || 0,
+          totalSpent: 0,
+          points: item.point || 0,
+          avatar: "",
+          recentOrders: item.bills?.$values || [],
+          rankMember: item.rankMember,
+        }));
         loading.value = false;
       } catch (err) {
         error.value = "Không thể tải dữ liệu khách hàng: " + err.message;
@@ -632,6 +651,18 @@ export default {
           return "bg-gold";
         case "Platinum":
           return "bg-platinum";
+        case "diamond":
+          return "bg-diamond";
+        case "Đồng":
+          return "bg-bronze";
+        case "Bạc":
+          return "bg-silver";
+        case "Vàng":
+          return "bg-gold";
+        case "Bạch Kim":
+          return "bg-platinum";
+        case "Kim cương":
+          return "bg-diamond";
         default:
           return "bg-secondary";
       }
@@ -647,6 +678,18 @@ export default {
           return "Vàng";
         case "Platinum":
           return "Bạch Kim";
+        case "Diamond":
+          return "Kim cương";
+        case "Đồng":
+          return "Đồng";
+        case "Bạc":
+          return "Bạc";
+        case "Vàng":
+          return "Vàng";
+        case "Bạch Kim":
+          return "Bạch Kim";
+        case "Kim cương":
+          return "Kim cương";
         default:
           return "Không xác định";
       }

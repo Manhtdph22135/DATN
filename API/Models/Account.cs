@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace API.Models;
 
+[Index("RoleId", Name = "IX_Accounts_RoleID")]
 [Index("Username", Name = "UQ__Accounts__536C85E4C3F5D1EA", IsUnique = true)]
 public partial class Account
 {
@@ -28,4 +29,6 @@ public partial class Account
     [ForeignKey("RoleId")]
     [InverseProperty("Accounts")]
     public virtual Role? Role { get; set; }
+    //[InverseProperty("Account")]
+    public virtual Customer? Customer { get; set; }
 }

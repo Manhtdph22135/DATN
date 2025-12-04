@@ -18,6 +18,7 @@ import CartView from "../views/store/CartView.vue";
 import CheckoutView from "../views/store/CheckoutView.vue";
 import UserAccountView from "../views/user/UserAccountView.vue";
 import UserOrdersView from "../views/user/UserOrdersView.vue";
+import NewsDetailView from "../views/store/NewsDetailView.vue";
 import NewsView from "../views/store/NewsView.vue";
 import TopsView from "../views/store/TopsView.vue";
 import BottomsView from "../views/store/BottomsView.vue";
@@ -44,7 +45,7 @@ const routes = [
   {
     path: "/",
     name: "home",
-    component: HomeView,
+    component: ProductListView,
   },
   {
     path: "/bills",
@@ -129,9 +130,18 @@ const routes = [
   },
   // Shop category routes
   {
-    path: "/news",
-    name: "news",
-    component: NewsView,
+    path: '/',
+    redirect: '/news' // Redirect đến trang news
+  },
+  {
+    path: '/news',
+    name: 'NewsList',
+    component: NewsView
+  },
+  {
+    path: '/news/:id',
+    name: 'NewsDetail', 
+    component: NewsDetailView,
   },
   {
     path: "/tops",

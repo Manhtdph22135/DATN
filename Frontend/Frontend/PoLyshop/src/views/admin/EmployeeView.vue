@@ -39,8 +39,8 @@
             <tr>
               <th>ID</th>
               <th>Họ và tên</th>
-              <th>Email</th>
-              <th>Số điện thoại</th>
+              <th>Tên đăng nhập</th>
+              <th>Mật khẩu</th>
               <th>Chức vụ</th>
               <th>Trạng thái</th>
               <th>Thao tác</th>
@@ -50,8 +50,8 @@
             <tr v-for="employee in filteredEmployees" :key="employee.id">
               <td>{{ employee.id }}</td>
               <td>{{ employee.fullName }}</td>
-              <td>{{ employee.email }}</td>
-              <td>{{ employee.phone }}</td>
+              <td>{{ employee.username }}</td>
+              <td>{{ employee.passwordHash }}</td>
               <td>{{ employee.position }}</td>
               <td>
                 <span :class="getStatusClass(employee.status)">{{
@@ -59,12 +59,12 @@
                 }}</span>
               </td>
               <td class="action-buttons">
-                <button
+                <!-- <button
                   class="btn btn-sm btn-info me-1"
                   @click="viewEmployee(employee)"
                 >
                   <i class="bi bi-eye"></i>
-                </button>
+                </button> -->
                 <button
                   class="btn btn-sm btn-warning me-1"
                   @click="editEmployee(employee)"
@@ -101,7 +101,7 @@
           </div>
           <div class="modal-body">
             <form @submit.prevent="saveEmployee">
-              <div class="mb-3">
+              <!-- <div class="mb-3">
                 <label class="form-label">Họ và tên</label>
                 <input
                   type="text"
@@ -109,17 +109,26 @@
                   v-model="currentEmployee.fullName"
                   required
                 />
-              </div>
+              </div> -->
               <div class="mb-3">
-                <label class="form-label">Email</label>
+                <label class="form-label">Tên đăng nhập</label>
                 <input
-                  type="email"
+                  type="text"
                   class="form-control"
-                  v-model="currentEmployee.email"
+                  v-model="currentEmployee.username"
                   required
                 />
               </div>
               <div class="mb-3">
+                <label class="form-label">Mật khẩu</label>
+                <input
+                  type="password"
+                  class="form-control"
+                  v-model="currentEmployee.passwordHash"
+                  required
+                />
+              </div>
+              <!-- <div class="mb-3">
                 <label class="form-label">Số điện thoại</label>
                 <input
                   type="tel"
@@ -127,28 +136,26 @@
                   v-model="currentEmployee.phone"
                   required
                 />
-              </div>
+              </div> -->
               <div class="mb-3">
                 <label class="form-label">Chức vụ</label>
                 <select
                   class="form-select"
-                  v-model="currentEmployee.position"
+                  v-model="currentEmployee.roleId"
                   required
                 >
-                  <option value="Quản lý">Quản lý</option>
-                  <option value="Nhân viên bán hàng">Nhân viên bán hàng</option>
-                  <option value="Nhân viên kho">Nhân viên kho</option>
-                  <option value="Kế toán">Kế toán</option>
+                  <option value="1">Quản lý</option>
+                  <option value="2">Nhân viên</option>
                 </select>
               </div>
-              <div class="mb-3">
+              <!-- <div class="mb-3">
                 <label class="form-label">Trạng thái</label>
                 <select class="form-select" v-model="currentEmployee.status">
                   <option value="Đang làm việc">Đang làm việc</option>
                   <option value="Tạm nghỉ">Tạm nghỉ</option>
                   <option value="Đã nghỉ việc">Đã nghỉ việc</option>
                 </select>
-              </div>
+              </div> -->
               <div class="text-end">
                 <button
                   type="button"
@@ -222,82 +229,91 @@ export default {
     const searchTerm = ref("");
     const currentEmployee = ref({
       id: null,
-      fullName: "",
-      email: "",
-      phone: "",
-      position: "Nhân viên bán hàng",
-      status: "Đang làm việc",
+      username: "",
+      passwordHash: "",
+      roleId: 0,
     });
     const isEditing = ref(false);
 
     // Sample data for development
-    const sampleEmployees = [
-      {
-      id: 1,
-      fullName: "Phạm Minh Tuấn",
-      email: "tuan.pham@example.com",
-      phone: "0987654321",
-      position: "Quản lý",
-      status: "Đang làm việc",
-      },
-      {
-      id: 2,
-      fullName: "Đỗ Thị Hạnh",
-      email: "hanh.do@example.com",
-      phone: "0912345678",
-      position: "Nhân viên bán hàng",
-      status: "Đang làm việc",
-      },
-      {
-      id: 3,
-      fullName: "Vũ Quốc Dũng",
-      email: "dung.vu@example.com",
-      phone: "0934567890",
-      position: "Nhân viên kho",
-      status: "Tạm nghỉ",
-      }
-    ];
-
-    const fetchEmployees = async () => {
-      try {
-        loading.value = true;
-        // Uncomment the following line when API is ready
-        // const response = await axios.get('/api/employees');
-        // employees.value = response.data;
-
-        // For development, use sample data
-        setTimeout(() => {
-          employees.value = sampleEmployees;
-          loading.value = false;
-        }, 500);
-      } catch (err) {
-        error.value = "Không thể tải dữ liệu nhân viên: " + err.message;
-        loading.value = false;
-      }
-    };
+    const sampleEmployees = []; // kept as a fallback if API is unavailable
 
     const filteredEmployees = computed(() => {
       if (!searchTerm.value) return employees.value;
 
       const term = searchTerm.value.toLowerCase();
-      return employees.value.filter(
-        (emp) =>
-          emp.fullName.toLowerCase().includes(term) ||
-          emp.email.toLowerCase().includes(term) ||
-          emp.phone.includes(term) ||
-          emp.position.toLowerCase().includes(term)
-      );
+      return employees.value.filter((emp) => {
+        return (
+          (emp.fullName || "").toLowerCase().includes(term) ||
+          (emp.username || "").toLowerCase().includes(term) ||
+          (emp.passwordHash || "").toLowerCase().includes(term) ||
+          (emp.position || "").toLowerCase().includes(term)
+        );
+      });
     });
+
+    const fetchEmployees = async () => {
+      try {
+        loading.value = true;
+
+        // call the provided API
+        const response = await axios.get(
+          "https://localhost:7055/api/Auth/get-account"
+        );
+
+        // normalize response: support direct array, { data: [...] }, { $values: [...] } or single object
+        const respData = response.data;
+
+        // helper to map account object from API to the employee model used by the UI
+        const mapAccountToEmployee = (acc) => {
+          return {
+            id: acc.accountId ?? acc.id ?? null,
+            fullName: acc.fullName ?? acc.username ?? "",
+            username: acc.username ?? "",
+            passwordHash: acc.passwordHash ?? acc.password ?? "",
+            position:
+              acc.position ??
+              (typeof acc.roleId === "number"
+                ? acc.roleId === 1
+                  ? "Quản lý"
+                  : "Nhân viên bán hàng"
+                : "Nhân viên bán hàng"),
+            status: acc.status ?? "Đang làm việc",
+          };
+        };
+
+        let sourceArray = [];
+
+        if (Array.isArray(respData)) {
+          sourceArray = respData;
+        } else if (respData && Array.isArray(respData.data)) {
+          sourceArray = respData.data;
+        } else if (respData && Array.isArray(respData.$values)) {
+          sourceArray = respData.$values;
+        } else if (respData) {
+          sourceArray = [respData];
+        } else {
+          sourceArray = [];
+        }
+
+        employees.value = sourceArray.map(mapAccountToEmployee);
+      } catch (err) {
+        // fallback to sample data if API fails and expose error message
+        employees.value = sampleEmployees;
+        error.value =
+          "Không thể tải dữ liệu nhân viên: " + (err && err.message ? err.message : "");
+      } finally {
+        loading.value = false;
+      }
+    };
 
     const openAddModal = () => {
       isEditing.value = false;
       currentEmployee.value = {
         id: null,
-        fullName: "",
-        email: "",
-        phone: "",
-        position: "Nhân viên bán hàng",
-        status: "Đang làm việc",
+        username: "",
+        password: "",
+        roleId: 0,
       };
       const modal = new bootstrap.Modal(
         document.getElementById("employeeModal")
@@ -327,57 +343,70 @@ export default {
 
     const saveEmployee = async () => {
       try {
-        if (isEditing.value) {
-          // Uncomment when API is ready
-          // await axios.put(`/api/employees/${currentEmployee.value.id}`, currentEmployee.value);
-
-          // For development
-          const index = employees.value.findIndex(
-            (e) => e.id === currentEmployee.value.id
-          );
-          if (index !== -1) {
-            employees.value[index] = { ...currentEmployee.value };
-          }
-        } else {
-          // Uncomment when API is ready
-          // const response = await axios.post('/api/employees', currentEmployee.value);
-          // employees.value.push(response.data);
-
-          // For development
-          const newId = Math.max(0, ...employees.value.map((e) => e.id)) + 1;
-          employees.value.push({
-            ...currentEmployee.value,
-            id: newId,
-          });
+      if (isEditing.value) {
+        // Update employee via API
+        await axios.put(
+        `https://localhost:7055/api/Auth/update-account-nhanvien/${currentEmployee.value.id}`,
+        {
+          username: currentEmployee.value.username,
+          password: currentEmployee.value.passwordHash,
+          roleId: parseInt(currentEmployee.value.roleId),
         }
-
-        // Close the modal
-        const modal = bootstrap.Modal.getInstance(
-          document.getElementById("employeeModal")
         );
-        modal.hide();
+
+        const index = employees.value.findIndex(
+        (e) => e.id === currentEmployee.value.id
+        );
+        if (index !== -1) {
+        employees.value[index] = { ...currentEmployee.value };
+        }
+      } else {
+        // Add new employee via API
+        const response = await axios.post(
+        "https://localhost:7055/api/Auth/add-account-nhanvien",
+        {
+          username: currentEmployee.value.username,
+          password: currentEmployee.value.passwordHash,
+          roleId: parseInt(currentEmployee.value.roleId),
+        }
+        );
+
+        const newEmployee = {
+        ...currentEmployee.value,
+        id: response.data.accountId ?? response.data.id,
+        };
+        employees.value.push(newEmployee);
+      }
+
+      // Close the modal
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("employeeModal")
+      );
+      modal.hide();
+
+      // Reload data after save
+      await fetchEmployees();
       } catch (err) {
-        error.value =
-          `Không thể ${isEditing.value ? "cập nhật" : "thêm"} nhân viên: ` +
-          err.message;
+      error.value = "Không thể lưu nhân viên: " + err.message;
       }
     };
 
     const deleteEmployee = async () => {
       try {
-        // Uncomment when API is ready
-        // await axios.delete(`/api/employees/${currentEmployee.value.id}`);
+        // Delete employee via API
+        await axios.delete(
+          `https://localhost:7055/api/Auth/delete-account-nhanvien/${currentEmployee.value.id}`
+        );
 
-        // For development
         employees.value = employees.value.filter(
           (e) => e.id !== currentEmployee.value.id
         );
 
         // Close the modal
-        const modal = bootstrap.Modal.getInstance(
+        const modalDelete = bootstrap.Modal.getInstance(
           document.getElementById("deleteModal")
         );
-        modal.hide();
+        modalDelete.hide();
       } catch (err) {
         error.value = "Không thể xóa nhân viên: " + err.message;
       }

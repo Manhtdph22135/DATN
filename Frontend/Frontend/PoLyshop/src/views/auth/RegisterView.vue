@@ -6,7 +6,6 @@
       <div v-if="errorMessage" class="alert alert-danger">
         {{ errorMessage }}
       </div>
-
       <div v-if="successMessage" class="alert alert-success">
         {{ successMessage }}
       </div>
@@ -20,7 +19,6 @@
           placeholder="Họ"
           required
         />
-
         <input
           type="text"
           id="lastName"
@@ -32,11 +30,11 @@
 
         <div class="gender-options">
           <label class="gender-option">
-            <input type="radio" name="gender" value="female" v-model="gender" />
+            <input type="radio" name="gender" value="female" v-model="gender" required/>
             <span>Nữ</span>
           </label>
           <label class="gender-option">
-            <input type="radio" name="gender" value="male" v-model="gender" />
+            <input type="radio" name="gender" value="male" v-model="gender" required/>
             <span>Nam</span>
           </label>
         </div>
@@ -49,14 +47,27 @@
           placeholder="mm/dd/yyyy"
           required
         />
-
         <input
           type="email"
           id="email"
           v-model="email"
           class="form-input"
-          placeholder="Email"
+          placeholder="Email (Dùng làm tên đăng nhập)"
           required
+        />
+        <input
+          type="tel"
+          id="phoneNumber"
+          v-model="phoneNumber"
+          class="form-input"
+          placeholder="Số điện thoại"
+        />
+        <input
+          type="text"
+          id="address"
+          v-model="address"
+          class="form-input"
+          placeholder="Địa chỉ"
         />
 
         <input
@@ -65,6 +76,14 @@
           v-model="password"
           class="form-input"
           placeholder="Mật khẩu"
+          required
+        />
+        <input
+          type="password"
+          id="confirmPassword"
+          v-model="confirmPassword"
+          class="form-input"
+          placeholder="Xác nhận mật khẩu"
           required
         />
 
@@ -86,128 +105,113 @@
 </template>
 
 <script>
-import authService from "@/untility/authService";
+// Giả định authService đã được fix và export đúng
+import { authService } from "@/untility/authService"; 
 
 export default {
   name: "RegisterView",
   data() {
     return {
+      // Các trường dữ liệu từ form
       firstName: "",
       lastName: "",
-      gender: "female",
+      gender: "female", // 'male' hoặc 'female'
       dateOfBirth: "",
-      phoneNumber: "",
+      phoneNumber: "", 
       email: "",
-      address: "",
+      address: "", 
       password: "",
-      confirmPassword: "",
-      showPassword: false,
-      showConfirmPassword: false,
-      agreeTerms: true, // Default to true to simplify form
+      confirmPassword: "", 
+      
+      // Các trạng thái UI
       isLoading: false,
       errorMessage: "",
       successMessage: "",
+      
+      // Các trường bạn có thể bỏ qua hoặc giữ nguyên
+      showPassword: false,
+      showConfirmPassword: false,
+      agreeTerms: true,
     };
   },
   computed: {
     isFormValid() {
+      // Kiểm tra các trường bắt buộc
       return (
         this.firstName &&
         this.lastName &&
         this.email &&
         this.dateOfBirth &&
-        this.password
+        this.password &&
+        this.confirmPassword
       );
     },
-    fullName() {
-      return `${this.firstName} ${this.lastName}`;
-    },
+    // fullName() { return `${this.firstName} ${this.lastName}`; }
   },
   methods: {
-    async register() {
-      if (!this.isFormValid) return;
+    // Hàm ánh xạ giới tính từ string sang boolean cho Backend C# (Male=True, Female=False)
+    mapGenderToBoolean(genderString) {
+        return genderString === 'male'; 
+    },
 
-      this.isLoading = true;
-      this.errorMessage = "";
-      this.successMessage = "";
+    // RegisterView.vue - Trong phần methods: { register() }
 
-      try {
-        console.log("Form submitted with values:", {
-          firstName: this.firstName,
-          lastName: this.lastName,
-          email: this.email,
-          gender: this.gender,
-        });
+async register() {
+    // ... (Kiểm tra validation và mật khẩu)
+    if (this.password !== this.confirmPassword) {
+        this.errorMessage = "Mật khẩu và Xác nhận mật khẩu không khớp!";
+        return;
+    }
 
-        // Prepare simpler data for registration to match API requirements
+    this.isLoading = true;
+    this.errorMessage = "";
+    this.successMessage = "";
+
+    try {
+        // --- PHẦN ĐÃ SỬA: XỬ LÝ USERNAME ---
+        let usernameToRegister = this.email;
+        const parts = this.email.split('@');
+        if (parts.length > 1) {
+            // Lấy phần đầu tiên trước ký tự '@'
+            usernameToRegister = parts[0]; 
+        }
+        // ------------------------------------
+
         const registerData = {
-          userName: this.email,
-          password: this.password,
-          confirmPassword: this.password, // Use same password for confirmation
+            // Account fields
+            Username: usernameToRegister, // SỬ DỤNG USERNAME ĐÃ XỬ LÝ
+            Password: this.password,
+            ConfirmPassword: this.confirmPassword,
+            RoleId: 3, 
+
+            // Customer fields (Giữ nguyên)
+            Ho: this.firstName,
+            Ten: this.lastName,
+            Email: this.email,
+            Phone: this.phoneNumber,
+            Sex: this.mapGenderToBoolean(this.gender), 
+            Dob: this.dateOfBirth,
+            Address: this.address,
         };
 
-        // TEMPORARY: Use mock registration for testing UI flow
-        // Remove this and uncomment the real API call when backend is ready
-        await this.mockRegistration();
-        return;
-
-        // Call register API with error handling
-        console.log("Calling register API with:", registerData);
+        // ... (Gọi API và xử lý kết quả)
         const response = await authService.register(registerData);
 
-        // Show success message
-        this.successMessage =
-          "Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.";
-
-        // Clear form data
+        this.successMessage = response.message || "Đăng ký thành công!";
         this.clearForm();
-
-        // Redirect to login page after a short delay
         setTimeout(() => {
-          this.$router.push("/login");
+            this.$router.push("/login");
         }, 2000);
-      } catch (error) {
-        console.error("Registration failed:", error);
 
-        // Detailed error handling
-        if (error.response) {
-          if (error.response.status === 500) {
-            this.errorMessage = "Lỗi máy chủ. Vui lòng thử lại sau.";
-          } else if (error.response.data && error.response.data.message) {
-            // Direct message from API
-            this.errorMessage = error.response.data.message;
-          } else if (
-            error.response.data &&
-            typeof error.response.data === "object"
-          ) {
-            // Try to extract error messages
-            const errorMessages = [];
-            for (const key in error.response.data) {
-              if (typeof error.response.data[key] === "string") {
-                errorMessages.push(error.response.data[key]);
-              } else if (Array.isArray(error.response.data[key])) {
-                errorMessages.push(error.response.data[key].join(", "));
-              }
-            }
-            this.errorMessage =
-              errorMessages.join("\n") ||
-              "Đăng ký thất bại. Vui lòng kiểm tra lại thông tin.";
-          } else {
-            this.errorMessage = `Đăng ký thất bại (${error.response.status}). Vui lòng thử lại.`;
-          }
-        } else if (error.request) {
-          // Network error - no response received
-          this.errorMessage =
-            "Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng và thử lại.";
-        } else {
-          this.errorMessage =
-            "Có lỗi xảy ra: " + (error.message || "Lỗi không xác định");
-        }
-      } finally {
+    } catch (error) {
+        // ... (Xử lý lỗi)
+        this.errorMessage = error.message || "Đăng ký thất bại. Vui lòng thử lại.";
+    } finally {
         this.isLoading = false;
-      }
-    },
+    }
+},
     clearForm() {
+      // ... (code clear form giữ nguyên)
       this.firstName = "";
       this.lastName = "";
       this.gender = "female";
@@ -218,42 +222,14 @@ export default {
       this.password = "";
       this.confirmPassword = "";
     },
-    // TEMPORARY: Mock registration function for UI testing
-    async mockRegistration() {
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Check for validation errors
-      if (!this.firstName || !this.lastName) {
-        this.errorMessage = "Vui lòng nhập đầy đủ họ và tên.";
-        return;
-      }
-
-      if (!this.email || !this.email.includes("@")) {
-        this.errorMessage = "Địa chỉ email không hợp lệ.";
-        return;
-      }
-
-      if (this.password.length < 6) {
-        this.errorMessage = "Mật khẩu phải có ít nhất 6 ký tự.";
-        return;
-      }
-
-      // Simulate successful registration
-      this.successMessage =
-        "Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.";
-      this.clearForm();
-
-      // Redirect to login page after a short delay
-      setTimeout(() => {
-        this.$router.push("/login");
-      }, 2000);
-    },
   },
 };
 </script>
 
 <style scoped>
+/* ---------------------------------------------------------------------- */
+/* PHẦN STYLES (CỦA BẠN)                          */
+/* ---------------------------------------------------------------------- */
 .register-container {
   display: flex;
   justify-content: center;

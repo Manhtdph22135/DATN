@@ -1,6 +1,6 @@
 <script setup>
 import { RouterLink, RouterView } from "vue-router";
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, onUnmounted, computed } from "vue";
 import authService, { authState } from "./untility/authService";
 import { useRouter } from "vue-router";
 
@@ -26,18 +26,24 @@ function toggleUserDropdown() {
 function closeDropdownOnOutsideClick(event) {
   const dropdown = document.querySelector(".user-menu-dropdown");
   const userIcon = document.querySelector(".user-icon-clickable");
-  if (
-    dropdown &&
-    !dropdown.contains(event.target) &&
-    !userIcon.contains(event.target)
-  ) {
-    showUserDropdown.value = false;
+
+  if (dropdown) {
+    const clickedInsideDropdown = dropdown.contains(event.target);
+    const clickedOnUserIcon = userIcon && userIcon.contains(event.target);
+    if (!clickedInsideDropdown && !clickedOnUserIcon) {
+      showUserDropdown.value = false;
+    }
   }
 }
 
 // Add event listener for outside clicks
 onMounted(() => {
   document.addEventListener("click", closeDropdownOnOutsideClick);
+});
+
+// Remove listener on unmount to avoid leaks
+onUnmounted(() => {
+  document.removeEventListener("click", closeDropdownOnOutsideClick);
 });
 
 // Handle logout
@@ -49,27 +55,29 @@ function logout() {
 
 // Navigate to Admin Dashboard
 function goToAdminDashboard() {
-  showUserDropdown.value = false;
+  // Lấy thông tin user hiện tại
+  const currentUser = authService.getUserData();
 
-  // Make sure the user has admin privileges
-  const userData = authService.getUserData();
-  if (userData) {
-    userData.role = "admin"; // Set admin role
-    authService.saveUserData(userData, true); // Save with updated role
+  // Kiểm tra quyền bảo mật: Nếu không phải Admin/Nhân viên (roleId < 3) thì chặn lại
+  if (!currentUser || (currentUser.roleId && currentUser.roleId >= 3)) {
+    alert("Bạn không có quyền truy cập vào trang quản trị!");
+    showUserDropdown.value = false;
+    return;
   }
 
+  showUserDropdown.value = false;
   router.push("/admin/dashboard");
 }
 </script>
 
 <template>
-  <!-- Admin Layout -->
   <div class="app-container" v-if="router.currentRoute.value.path.includes('/admin')">
     <div class="admin-layout">
-      <!-- Sidebar -->
       <div class="sidebar">
         <div class="logo-container">
-          <router-link to="/shop"><img src="@/components/img/logo.png" alt="POLY" class="logo" /></router-link>
+          <router-link to="/admin/dashboard">
+            <img src="@/components/img/logo.png" alt="POLY" class="logo" />
+          </router-link>
         </div>
         <div class="menu-title">Quản lý</div>
         <ul class="sidebar-menu">
@@ -110,17 +118,11 @@ function goToAdminDashboard() {
             <router-link to="/admin/hoadon" class="sidebar-link"><i class="bi bi-receipt menu-icon"></i> Hoá
               đơn</router-link>
           </li>
-          
-          <!-- <li>
-            <router-link to="/admin/thongke" class="sidebar-link"><i class="bi bi-bar-chart menu-icon"></i> Thống
-              kê</router-link>
-          </li> -->
+
         </ul>
       </div>
 
-      <!-- Content Area -->
       <div class="content-area">
-        <!-- Admin Header -->
         <div class="admin-header">
           <div class="admin-header-right">
             <div class="admin-user-dropdown">
@@ -129,7 +131,6 @@ function goToAdminDashboard() {
                 <span class="user-name">{{ displayName }}</span>
                 <i class="bi bi-chevron-down"></i>
               </div>
-              <!-- Dropdown menu -->
               <div class="user-menu-dropdown" v-if="showUserDropdown">
                 <div class="dropdown-user-info">
                   <i class="bi bi-person-circle"></i>
@@ -139,10 +140,11 @@ function goToAdminDashboard() {
                 <router-link to="/account" class="dropdown-item">
                   <i class="bi bi-gear"></i> Tài khoản của tôi
                 </router-link>
-                <router-link to="/orders" class="dropdown-item">
+                <router-link to="/orders" class="dropdown-item" v-if="userData && userData.roleId > 2">
                   <i class="bi bi-bag"></i> Đơn hàng của tôi
                 </router-link>
-                <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard">
+                <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard"
+                  v-if="userData && userData.roleId < 3">
                   <i class="bi bi-speedometer2"></i> Quầy
                 </a>
                 <div class="dropdown-divider"></div>
@@ -158,9 +160,7 @@ function goToAdminDashboard() {
     </div>
   </div>
 
-  <!-- E-commerce Layout -->
   <div class="app-container" v-else>
-    <!-- Header -->
     <header class="store-header">
       <div class="logo-container">
         <router-link to="/shop">
@@ -186,22 +186,18 @@ function goToAdminDashboard() {
             <i class="bi bi-cart"></i>
           </router-link>
         </div>
-        <!-- User Menu -->
         <div class="user-menu">
-          <!-- Not logged in -> show login link -->
           <template v-if="!isLoggedIn">
             <router-link to="/login" class="login-link">
               <i class="bi bi-person"></i>
             </router-link>
           </template>
-          <!-- Logged in -> show user menu dropdown -->
           <div class="user-dropdown" v-else>
             <div class="user-icon-clickable" @click="toggleUserDropdown">
               <i class="bi bi-person-circle"></i>
               <span class="user-name">{{ displayName }}</span>
               <i class="bi bi-chevron-down"></i>
             </div>
-            <!-- Dropdown menu -->
             <div class="user-menu-dropdown" v-if="showUserDropdown">
               <div class="dropdown-user-info">
                 <i class="bi bi-person-circle"></i>
@@ -214,9 +210,12 @@ function goToAdminDashboard() {
               <router-link to="/orders" class="dropdown-item">
                 <i class="bi bi-bag"></i> Đơn hàng của tôi
               </router-link>
-              <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard">
+
+              <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard"
+                v-if="userData && userData.roleId < 3">
                 <i class="bi bi-speedometer2"></i> Quầy
               </a>
+
               <div class="dropdown-divider"></div>
               <a href="#" class="dropdown-item logout-item" @click.prevent="logout">
                 <i class="bi bi-box-arrow-right"></i> Đăng xuất
@@ -227,12 +226,10 @@ function goToAdminDashboard() {
       </div>
     </header>
 
-    <!-- Main Content -->
     <main class="store-content">
       <RouterView />
     </main>
 
-    <!-- Footer -->
     <footer class="store-footer">
       <div class="footer-branding">
         <div class="footer-logo">POLY</div>

@@ -11,9 +11,11 @@ namespace API.Controllers.Products
     public class ProductController : Controller
     {
         private readonly DbContextShop _contextShop;
-        public ProductController(DbContextShop contextShop)
+        private readonly IWebHostEnvironment _env;
+        public ProductController(DbContextShop contextShop, IWebHostEnvironment env)
         {
             _contextShop = contextShop;
+            _env = env;
         }
         
        
@@ -243,51 +245,117 @@ namespace API.Controllers.Products
         }
         // POST: api/Product
         [HttpPost]
+        [Consumes("application/json")]
         public async Task<ActionResult<Product>> PostProduct([FromBody] ProductUpdateDto dto)
         {
-            if (dto.Products == null || dto.ProductDetails == null)
+            try
             {
-                return BadRequest("Product or ProductDetail data is missing.");
+                if (dto.Products == null || dto.ProductDetails == null)
+                {
+                    return BadRequest("Product or ProductDetail data is missing.");
+                }
+
+                // Validate foreign keys
+                if (!await _contextShop.ProductCategories.AnyAsync(c => c.CategoryId == dto.Products.CategoryId))
+                    return NotFound("Category not found.");
+
+                if (!await _contextShop.Sizes.AnyAsync(s => s.SizeId == dto.Sizes.SizeId))
+                    return NotFound("Size not found.");
+
+                if (!await _contextShop.Colors.AnyAsync(c => c.ColorId == dto.Colors.ColorId))
+                    return NotFound("Color not found.");
+
+                if (!await _contextShop.Materials.AnyAsync(m => m.MaterialId == dto.Materials.MaterialId))
+                    return NotFound("Material not found.");
+
+                // Tạo Product
+                var product = new Product
+                {
+                    ProductName = dto.Products.ProductName,
+                    Price = dto.Products.Price,
+                    CategoryId = dto.Products.CategoryId,
+                    Status = dto.Products.Status,
+                    CreatedAt = DateTime.Now,
+                    UpdateAt = DateTime.Now
+                };
+
+                _contextShop.Products.Add(product);
+                await _contextShop.SaveChangesAsync();
+
+                // ================== XỬ LÝ ẢNH BASE64 AN TOÀN ==================
+                string? imagePath = null;
+
+                if (!string.IsNullOrWhiteSpace(dto.ProductDetails.Image))
+                {
+                    try
+                    {
+                        string base64String = dto.ProductDetails.Image;
+
+                        // Nếu dạng: data:image/png;base64,xxxxxxx
+                        int commaIndex = base64String.IndexOf(',');
+                        if (commaIndex >= 0 && commaIndex + 1 < base64String.Length)
+                        {
+                            base64String = base64String.Substring(commaIndex + 1);
+                        }
+
+                        // Decode base64
+                        byte[] bytes = Convert.FromBase64String(base64String);
+
+                        // Xử lý WebRootPath an toàn
+                        var webRoot = _env.WebRootPath;
+                        if (string.IsNullOrEmpty(webRoot))
+                        {
+                            webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                        }
+
+                        var folder = Path.Combine(webRoot, "images", "products");
+                        if (!Directory.Exists(folder))
+                        {
+                            Directory.CreateDirectory(folder);
+                        }
+
+                        var fileName = Guid.NewGuid().ToString("N") + ".png";
+                        var filePath = Path.Combine(folder, fileName);
+
+                        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
+
+                        imagePath = "/images/products/" + fileName;
+                    }
+                    catch (FormatException)
+                    {
+                        // Base64 không hợp lệ → trả lỗi 400 thay vì văng process
+                        return BadRequest("Invalid image data (base64).");
+                    }
+                }
+
+                // ================== TẠO PRODUCTDETAIL ==================
+                var productDetail = new ProductDetail
+                {
+                    ProductId = product.ProductId,
+                    SizeId = dto.Sizes.SizeId,
+                    ColorId = dto.Colors.ColorId,
+                    MaterialId = dto.Materials.MaterialId,
+                    StockQuantity = dto.ProductDetails.StockQuantity,
+                    Image = imagePath
+                };
+
+                _contextShop.ProductDetails.Add(productDetail);
+                await _contextShop.SaveChangesAsync();
+
+                return CreatedAtAction("GetProduct", new { id = product.ProductId }, product);
             }
-
-            // Validate foreign keys
-            if (!await _contextShop.ProductCategories.AnyAsync(c => c.CategoryId == dto.Products.CategoryId))
-                return NotFound("Category not found.");
-            if (!await _contextShop.Sizes.AnyAsync(s => s.SizeId == dto.Sizes.SizeId))
-                return NotFound("Size not found.");
-            if (!await _contextShop.Colors.AnyAsync(c => c.ColorId == dto.Colors.ColorId))
-                return NotFound("Color not found.");
-            if (!await _contextShop.Materials.AnyAsync(m => m.MaterialId == dto.Materials.MaterialId))
-                return NotFound("Material not found.");
-
-            // Create Product
-            var product = new Product
+            catch (Exception ex)
             {
-                ProductName = dto.Products.ProductName,
-                Price = dto.Products.Price,
-                CategoryId = dto.Products.CategoryId,
-                Status = dto.Products.Status,
-                CreatedAt = DateTime.Now,
-                UpdateAt = DateTime.Now
-            };
-            _contextShop.Products.Add(product);
-            await _contextShop.SaveChangesAsync();
+                // Log để xem lỗi gì đang làm backend "văng"
+                Console.WriteLine("PostProduct error: " + ex);
 
-            // Create ProductDetail
-            var productDetail = new ProductDetail
-            {
-                ProductId = product.ProductId,
-                SizeId = dto.Sizes.SizeId,
-                ColorId = dto.Colors.ColorId,
-                MaterialId = dto.Materials.MaterialId,
-                StockQuantity = dto.ProductDetails.StockQuantity,
-                Image = dto.ProductDetails.Image
-            };
-            _contextShop.ProductDetails.Add(productDetail);
-            await _contextShop.SaveChangesAsync();
-
-            return CreatedAtAction("GetProduct", new { id = product.ProductId }, product);
+                // Trả về 500 thay vì crash app
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                                  "Internal server error in PostProduct");
+            }
         }
+
+
         // DELETE: api/Customer/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(int id)

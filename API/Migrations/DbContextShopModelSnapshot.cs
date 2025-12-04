@@ -55,7 +55,7 @@ namespace API.Migrations
                     b.HasKey("AccountId")
                         .HasName("PK__Accounts__349DA5866CC4CC0D");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex(new[] { "RoleId" }, "IX_Accounts_RoleID");
 
                     b.HasIndex(new[] { "Username" }, "UQ__Accounts__536C85E4C3F5D1EA")
                         .IsUnique();
@@ -73,10 +73,10 @@ namespace API.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BillId"));
 
                     b.Property<decimal>("AmountReceived")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("ChangeAmount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<DateTime>("CreateAt")
                         .ValueGeneratedOnAdd()
@@ -88,7 +88,7 @@ namespace API.Migrations
                         .HasColumnName("CustomerID");
 
                     b.Property<decimal>("DiscountAmount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<string>("Note")
                         .HasMaxLength(500)
@@ -97,8 +97,7 @@ namespace API.Migrations
                     b.Property<string>("OrderCode")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasColumnName("OrderCode");
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("PaidAt")
                         .HasColumnType("datetime");
@@ -113,32 +112,32 @@ namespace API.Migrations
                         .HasColumnName("StaffID");
 
                     b.Property<decimal>("Subtotal")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("TotalAmount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<int?>("TransportId")
                         .HasColumnType("int")
                         .HasColumnName("TransportID");
 
                     b.Property<decimal>("VatAmount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("VatRate")
-                        .HasColumnType("decimal(5,2)");
+                        .HasColumnType("decimal(5, 2)");
 
                     b.HasKey("BillId")
                         .HasName("PK__Bills__11F2FC4A635723A7");
 
-                    b.HasIndex("CustomerId");
+                    b.HasIndex(new[] { "CustomerId" }, "IX_Bills_CustomerID");
 
-                    b.HasIndex("StaffId");
+                    b.HasIndex(new[] { "StaffId" }, "IX_Bills_StaffID");
 
-                    b.HasIndex("TransportId");
+                    b.HasIndex(new[] { "TransportId" }, "IX_Bills_TransportID");
 
                     b.ToTable("Bills");
                 });
@@ -163,37 +162,71 @@ namespace API.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("Total")
+                    b.Property<decimal?>("Total")
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("decimal(18,2)")
+                        .HasColumnType("decimal(29, 2)")
                         .HasComputedColumnSql("([Quantity]*[UnitPrice])", true);
 
                     b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.HasKey("BillDetailId")
                         .HasName("PK__BillDeta__793CAF7565BBFBEC");
 
-                    b.HasIndex("BillId");
+                    b.HasIndex(new[] { "BillId" }, "IX_BillDetails_BillID");
 
-                    b.HasIndex("ProductDetailId");
+                    b.HasIndex(new[] { "ProductDetailId" }, "IX_BillDetails_ProductDetailID");
 
                     b.ToTable("BillDetails");
                 });
 
-            modelBuilder.Entity("API.Models.CartDetails", b =>
+            modelBuilder.Entity("API.Models.Cart", b =>
                 {
-                    b.Property<int>("CartDetailID")
+                    b.Property<int>("CartId")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("CartID");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.Property<int?>("CustomerId")
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartDetailID"));
-
-                    b.Property<int>("CartID")
+                    b.Property<int>("Status")
                         .HasColumnType("int");
 
-                    b.Property<int>("ProductDetailID")
-                        .HasColumnType("int");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CartId")
+                        .HasName("PK__Carts__5B65BF97D8A6F2E3");
+
+                    b.HasIndex(new[] { "CustomerId" }, "IX_Carts_CustomerId");
+
+                    b.ToTable("Carts");
+                });
+
+            modelBuilder.Entity("API.Models.CartDetail", b =>
+                {
+                    b.Property<int>("CartDetailId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("CartDetailID");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartDetailId"));
+
+                    b.Property<int>("CartId")
+                        .HasColumnType("int")
+                        .HasColumnName("CartID");
+
+                    b.Property<int>("ProductDetailId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProductDetailID");
 
                     b.Property<int>("Quantity")
                         .ValueGeneratedOnAdd()
@@ -201,51 +234,19 @@ namespace API.Migrations
                         .HasDefaultValue(1);
 
                     b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
                     b.Property<decimal>("UnitPrice")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(18, 2)");
 
-                    b.HasKey("CartDetailID")
+                    b.HasKey("CartDetailId")
                         .HasName("PK__CartDeta__4E3E04AD8D7C2F1E");
 
-                    b.HasIndex("CartID");
+                    b.HasIndex(new[] { "CartId" }, "IX_CartDetails_CartID");
 
-                    b.HasIndex("ProductDetailID");
+                    b.HasIndex(new[] { "ProductDetailId" }, "IX_CartDetails_ProductDetailID");
 
                     b.ToTable("CartDetails");
-                });
-
-            modelBuilder.Entity("API.Models.Carts", b =>
-                {
-                    b.Property<int>("CartID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CartID"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.Property<int>("CustomerID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Status")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("CartID")
-                        .HasName("PK__Carts__5B65BF97D8A6F2E3");
-
-                    b.HasIndex("CustomerID");
-
-                    b.ToTable("Carts");
                 });
 
             modelBuilder.Entity("API.Models.Color", b =>
@@ -279,6 +280,10 @@ namespace API.Migrations
                         .HasColumnName("CustomerID");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CustomerId"));
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int")
+                        .HasColumnName("AccountID");
 
                     b.Property<string>("Address")
                         .HasMaxLength(255)
@@ -315,19 +320,13 @@ namespace API.Migrations
                     b.Property<int?>("Point")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(1);
 
                     b.Property<string>("RankMember")
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("Bình thường");
-
-                    b.Property<int>("RoleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(3)
-                        .HasColumnName("RoleID");
+                        .HasDefaultValue("Đồng");
 
                     b.Property<DateTime?>("UpdateAt")
                         .HasColumnType("datetime");
@@ -335,7 +334,10 @@ namespace API.Migrations
                     b.HasKey("CustomerId")
                         .HasName("PK__Customer__A4AE64B893D88A52");
 
-                    b.HasIndex("RoleId");
+                    b.HasIndex("AccountId")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "AccountId" }, "IX_Customers_RoleID");
 
                     b.HasIndex(new[] { "Phone" }, "UQ__Customer__5C7E359E9B9944BC")
                         .IsUnique();
@@ -447,7 +449,7 @@ namespace API.Migrations
                     b.HasKey("ProductId")
                         .HasName("PK__Products__B40CC6EDC32A859E");
 
-                    b.HasIndex("CategoryId");
+                    b.HasIndex(new[] { "CategoryId" }, "IX_Products_CategoryID");
 
                     b.ToTable("Products");
                 });
@@ -513,13 +515,13 @@ namespace API.Migrations
                     b.HasKey("ProductDetailId")
                         .HasName("PK__ProductD__3C8DD694357756D8");
 
-                    b.HasIndex("ColorId");
+                    b.HasIndex(new[] { "ColorId" }, "IX_ProductDetails_ColorID");
 
-                    b.HasIndex("MaterialId");
+                    b.HasIndex(new[] { "MaterialId" }, "IX_ProductDetails_MaterialID");
 
-                    b.HasIndex("ProductId");
+                    b.HasIndex(new[] { "ProductId" }, "IX_ProductDetails_ProductID");
 
-                    b.HasIndex("SizeId");
+                    b.HasIndex(new[] { "SizeId" }, "IX_ProductDetails_SizeID");
 
                     b.ToTable("ProductDetails");
                 });
@@ -527,8 +529,14 @@ namespace API.Migrations
             modelBuilder.Entity("API.Models.Promotion", b =>
                 {
                     b.Property<int>("PromotionId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasColumnName("PromotionID");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PromotionId"));
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime");
@@ -565,10 +573,9 @@ namespace API.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.HasKey("PromotionId")
-                        .HasName("PK__Promotio__52C42F2FFDC43A8F");
+                    b.HasKey("PromotionId");
 
-                    b.ToTable("Promotion");
+                    b.ToTable("Promotion", (string)null);
                 });
 
             modelBuilder.Entity("API.Models.Role", b =>
@@ -767,45 +774,47 @@ namespace API.Migrations
                     b.Navigation("ProductDetail");
                 });
 
-            modelBuilder.Entity("API.Models.CartDetails", b =>
+            modelBuilder.Entity("API.Models.Cart", b =>
                 {
-                    b.HasOne("API.Models.Carts", "Cart")
-                        .WithMany("Details")
-                        .HasForeignKey("CartID")
+                    b.HasOne("API.Models.Customer", "Customer")
+                        .WithMany("Carts")
+                        .HasForeignKey("CustomerId")
+                        .HasConstraintName("FK_Carts_Customers_CustomerId_New");
+
+                    b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("API.Models.CartDetail", b =>
+                {
+                    b.HasOne("API.Models.Cart", "Cart")
+                        .WithMany("CartDetails")
+                        .HasForeignKey("CartId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__CartDeta__CartID__3C69FB99");
 
-                    b.HasOne("API.Models.ProductDetail", null)
-                        .WithMany()
-                        .HasForeignKey("ProductDetailID")
+                    b.HasOne("API.Models.ProductDetail", "ProductDetail")
+                        .WithMany("CartDetails")
+                        .HasForeignKey("ProductDetailId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("FK__CartDeta__ProductDeta__3D5E1FD2");
 
                     b.Navigation("Cart");
-                });
 
-            modelBuilder.Entity("API.Models.Carts", b =>
-                {
-                    b.HasOne("API.Models.Customer", null)
-                        .WithMany()
-                        .HasForeignKey("CustomerID")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK__Carts__CustomerID__3B75D760");
+                    b.Navigation("ProductDetail");
                 });
 
             modelBuilder.Entity("API.Models.Customer", b =>
                 {
-                    b.HasOne("API.Models.Role", "Role")
-                        .WithMany("Customers")
-                        .HasForeignKey("RoleId")
+                    b.HasOne("API.Models.Account", "Account")
+                        .WithOne("Customer")
+                        .HasForeignKey("API.Models.Customer", "AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("FK_Customers_Roles");
+                        .HasConstraintName("FK_Customers_Accounts");
 
-                    b.Navigation("Role");
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("API.Models.Product", b =>
@@ -854,14 +863,19 @@ namespace API.Migrations
                     b.Navigation("Size");
                 });
 
+            modelBuilder.Entity("API.Models.Account", b =>
+                {
+                    b.Navigation("Customer");
+                });
+
             modelBuilder.Entity("API.Models.Bill", b =>
                 {
                     b.Navigation("BillDetails");
                 });
 
-            modelBuilder.Entity("API.Models.Carts", b =>
+            modelBuilder.Entity("API.Models.Cart", b =>
                 {
-                    b.Navigation("Details");
+                    b.Navigation("CartDetails");
                 });
 
             modelBuilder.Entity("API.Models.Color", b =>
@@ -872,6 +886,8 @@ namespace API.Migrations
             modelBuilder.Entity("API.Models.Customer", b =>
                 {
                     b.Navigation("Bills");
+
+                    b.Navigation("Carts");
                 });
 
             modelBuilder.Entity("API.Models.Material", b =>
@@ -892,13 +908,13 @@ namespace API.Migrations
             modelBuilder.Entity("API.Models.ProductDetail", b =>
                 {
                     b.Navigation("BillDetails");
+
+                    b.Navigation("CartDetails");
                 });
 
             modelBuilder.Entity("API.Models.Role", b =>
                 {
                     b.Navigation("Accounts");
-
-                    b.Navigation("Customers");
                 });
 
             modelBuilder.Entity("API.Models.Size", b =>

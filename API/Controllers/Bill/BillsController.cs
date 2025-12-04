@@ -265,6 +265,7 @@ namespace API.Controllers.Bill
                 return NotFound();
             }
 
+
             _contextShop.Bills.Remove(bill);
             await _contextShop.SaveChangesAsync();
 

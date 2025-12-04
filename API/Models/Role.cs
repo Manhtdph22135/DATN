@@ -19,6 +19,6 @@ public partial class Role
     [InverseProperty("Role")]
     public virtual ICollection<Account> Accounts { get; set; } = new List<Account>();
 
-    [InverseProperty("Role")]
-    public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
+    //[InverseProperty("Account")]
+    //public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
 }
