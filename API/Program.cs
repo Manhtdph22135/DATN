@@ -76,16 +76,14 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Cấu hình middleware
-if (app.Environment.IsDevelopment())
-{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
 
 app.UseCors("AllowAll");
 app.UseCors("AllowFrontend");
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/", () => "API is running");
 
 app.Run();

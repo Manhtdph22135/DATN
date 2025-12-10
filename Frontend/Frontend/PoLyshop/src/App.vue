@@ -140,13 +140,13 @@ function goToAdminDashboard() {
                 <router-link to="/account" class="dropdown-item">
                   <i class="bi bi-gear"></i> Tài khoản của tôi
                 </router-link>
-                <router-link to="/orders" class="dropdown-item" v-if="userData && userData.roleId > 2">
+                <router-link to="/orders" class="dropdown-item" v-if="userData && userData.roleId === 3">
                   <i class="bi bi-bag"></i> Đơn hàng của tôi
                 </router-link>
-                <a href="#" class="dropdown-item" @click.prevent="goToAdminDashboard"
+                <router-link href="#" class="dropdown-item" @click.prevent="goToAdminDashboard"
                   v-if="userData && userData.roleId < 3">
                   <i class="bi bi-speedometer2"></i> Quầy
-                </a>
+                </router-link>>
                 <div class="dropdown-divider"></div>
                 <a href="#" class="dropdown-item logout-item" @click.prevent="logout">
                   <i class="bi bi-box-arrow-right"></i> Đăng xuất
