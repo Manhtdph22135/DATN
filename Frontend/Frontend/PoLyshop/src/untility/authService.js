@@ -58,6 +58,7 @@ export const authService = {
         token: response.data.token,
         fullName: response.data.fullName || username,
         roleId: response.data.roleId,
+        accountId: response.data.accountId,
         message: response.data.message || "Login successful!",
       };
 

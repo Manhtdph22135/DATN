@@ -4,7 +4,6 @@ import axios from "axios";
 import bootstrap from "@/utils/bootstrapHelper";
 
 const getBootstrap = () => {
-  // prefer the imported helper if it exposes Modal, otherwise fall back to global window.bootstrap
   if (bootstrap && bootstrap.Modal) return bootstrap;
   if (typeof window !== "undefined" && window.bootstrap) return window.bootstrap;
   return null;
@@ -12,11 +11,9 @@ const getBootstrap = () => {
 
 const products = ref([]);
 const categories = ref([]);
-// KHAI BÁO MỚI: Dữ liệu động từ API
 const sizes = ref([]);
 const colors = ref([]);
 const materials = ref([]);
-// Kết thúc khai báo mới
 
 const searchTerm = ref("");
 const error = ref(null);
@@ -38,14 +35,13 @@ const defaultProductState = () => ({
   categoryId: categories.value[0]?.categoryId || null,
   image: "",
   tradeMark: "",
-  materialName: materials.value[0]?.materialName || "", // Cập nhật mặc định
-  materialId: materials.value[0]?.materialId || null, // Cập nhật mặc định
+  materialName: materials.value[0]?.materialName || "",
+  materialId: materials.value[0]?.materialId || null,
   sizeName: "",
   sizeId: null,
-  colorName: colors.value[0]?.colorName || "", // Cập nhật mặc định
-  colorId: colors.value[0]?.colorId || null, // Cập nhật mặc định
+  colorName: colors.value[0]?.colorName || "",
+  colorId: colors.value[0]?.colorId || null,
   stockQuantity: 0,
-  // Mảng size + tồn kho cho thêm mới / chỉnh sửa
   sizeVariants: [
     {
       sizeName: "",
@@ -57,15 +53,12 @@ const defaultProductState = () => ({
 
 const currentProduct = ref(defaultProductState());
 
-// ---------- FETCH FUNCTIONS MỚI ----------
-
-// Hàm chung để xử lý response từ API (.NET Core)
+// Xử lý response .NET
 const handleApiResponse = (res) => {
-  // Trả về mảng data, xử lý trường hợp $values thường thấy trong .NET/OData
   return Array.isArray(res.data) ? res.data : res.data.$values || [];
 };
 
-// Lấy danh mục (Giữ nguyên)
+// Lấy danh mục
 const fetchCategories = async () => {
   try {
     const res = await axios.get("https://localhost:7055/api/ProductCategory");
@@ -79,7 +72,7 @@ const fetchCategories = async () => {
   }
 };
 
-// Lấy size
+// Lấy size (đi từ api/Sizes – nếu bạn dùng api/Product/Sizes thì đổi URL)
 const fetchSizes = async () => {
   try {
     const res = await axios.get("https://localhost:7055/api/Sizes");
@@ -107,7 +100,7 @@ const fetchColors = async () => {
   }
 };
 
-// Lấy chất liệu (Theo API bạn yêu cầu)
+// Lấy chất liệu
 const fetchMaterials = async () => {
   try {
     const res = await axios.get("https://localhost:7055/api/Materials");
@@ -120,15 +113,13 @@ const fetchMaterials = async () => {
     error.value = "Không thể lấy danh sách chất liệu: " + err.message;
   }
 };
-// ---------- KẾT THÚC FETCH FUNCTIONS MỚI ----------
 
-
-// Lấy sản phẩm (Giữ nguyên)
+// Lấy sản phẩm
 const fetchProducts = async () => {
   try {
     loading.value = true;
     const res = await axios.get("https://localhost:7055/api/Product");
-    const productArray = handleApiResponse(res); // Sử dụng hàm xử lý chung
+    const productArray = handleApiResponse(res);
 
     products.value = productArray.map((p) => {
       const stock = p.stockQuantity ?? 0;
@@ -161,7 +152,6 @@ const fetchProducts = async () => {
 };
 
 onMounted(() => {
-  // Gọi tất cả các hàm fetch cần thiết khi component được mount
   fetchCategories();
   fetchProducts();
   fetchSizes();
@@ -169,7 +159,6 @@ onMounted(() => {
   fetchMaterials();
 });
 
-// Filter sản phẩm (Giữ nguyên)
 const filteredProducts = computed(() => {
   if (!searchTerm.value) return products.value;
 
@@ -187,7 +176,7 @@ const filteredProducts = computed(() => {
   });
 });
 
-// Mở modal thêm mới (Cập nhật default state)
+// Mở modal thêm
 const openAddModal = () => {
   const bs = getBootstrap();
   const modalElement = bs && bs.Modal
@@ -195,16 +184,15 @@ const openAddModal = () => {
     : new window.bootstrap.Modal(document.getElementById("productModal"));
   modalElement.show();
   selectedProduct.value = false;
-  currentProduct.value = defaultProductState(); // Dùng hàm default mới
+  currentProduct.value = defaultProductState();
   isAdding.value = true;
   error.value = null;
 };
 
-// Xem chi tiết (Giữ nguyên)
+// Xem chi tiết
 const detailsProduct = (product) => {
   currentProduct.value = {
     ...product,
-    // Chỉ lấy size hiện tại để hiển thị
     sizeVariants: [
       {
         sizeName: product.sizeName || "",
@@ -221,7 +209,7 @@ const detailsProduct = (product) => {
   isAdding.value = false;
 };
 
-// Sửa sản phẩm (1 bản ghi = 1 size hiện tại) (Giữ nguyên logic mapping)
+// Sửa sản phẩm
 const editProduct = (product) => {
   isEditing.value = true;
   isAdding.value = false;
@@ -249,7 +237,6 @@ const editProduct = (product) => {
     colorName: product.colorName,
     colorId: col?.colorId || null,
     stockQuantity: product.stockQuantity,
-    // Chỉ chứa biến thể đang được sửa
     sizeVariants: [
       {
         sizeName: product.sizeName || "",
@@ -263,7 +250,6 @@ const editProduct = (product) => {
   modal.show();
 };
 
-// Thêm dòng size + tồn kho (Giữ nguyên)
 const addSizeVariant = () => {
   if (!isEditing.value && !isAdding.value) return;
   currentProduct.value.sizeVariants.push({
@@ -273,29 +259,26 @@ const addSizeVariant = () => {
   });
 };
 
-// Xóa dòng size + tồn kho (Giữ nguyên)
 const removeSizeVariant = (index) => {
   if (!isEditing.value && !isAdding.value) return;
   if (currentProduct.value.sizeVariants.length <= 1) return;
   currentProduct.value.sizeVariants.splice(index, 1);
 };
 
-// Xử lý upload ảnh (đọc base64, preview, gửi lên API qua field image) (Giữ nguyên)
+// Đọc file -> base64 để PREVIEW (nhưng KHÔNG gửi lên server nữa)
 const handleImageChange = (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
   const reader = new FileReader();
   reader.onload = () => {
-    // reader.result là base64 string
     currentProduct.value.image = reader.result;
   };
   reader.readAsDataURL(file);
 };
 
-// LƯU SẢN PHẨM (THÊM MỚI / CHỈNH SỬA) (Giữ nguyên logic)
+// Lưu sản phẩm
 const saveProduct = async () => {
-  // 1. Ánh xạ ID và tính toán trạng thái chung
   const selectedCategory = categories.value.find(
     (c) => c.categoryName === currentProduct.value.categoryName
   );
@@ -316,17 +299,15 @@ const saveProduct = async () => {
     currentProduct.value.materialId = selectedMaterial.materialId;
   }
 
-  // Lấy tổng tồn kho từ các size
   const totalStock = (currentProduct.value.sizeVariants || []).reduce(
     (sum, v) => sum + Number(v.stockQuantity || 0),
     0
   );
-  // Cập nhật status chung (Nếu totalStock > 0 thì đang bán)
   currentProduct.value.status = totalStock > 0;
 
   try {
     if (isEditing.value && isAdding.value === false) {
-      // -------------------- CHỈNH SỬA (PUT) --------------------
+      // CHỈNH SỬA
       const firstVariant =
         currentProduct.value.sizeVariants &&
         currentProduct.value.sizeVariants[0];
@@ -341,8 +322,6 @@ const saveProduct = async () => {
       if (selectedSize) {
         currentProduct.value.sizeId = selectedSize.sizeId;
       }
-      
-      const imageToSend = currentProduct.value.image || "https://placehold.co/100x100/orange/white?text=No+Image";
 
       const dataToSend = {
         products: {
@@ -356,7 +335,8 @@ const saveProduct = async () => {
           productDetailId: currentProduct.value.productDetailId,
           productId: currentProduct.value.productId,
           stockQuantity: Number(firstVariant.stockQuantity),
-          image: imageToSend, 
+          // QUAN TRỌNG: không gửi base64 nữa để tránh văng server
+          image: null,
         },
         sizes: {
           sizeId: currentProduct.value.sizeId,
@@ -375,12 +355,7 @@ const saveProduct = async () => {
       );
 
     } else {
-      // -------------------- THÊM MỚI (POST - LẶP QUA CÁC SIZE) --------------------
-      
-      if (!currentProduct.value.image) {
-           throw new Error("Vui lòng chọn ảnh cho sản phẩm.");
-      }
-      
+      // THÊM MỚI
       const validVariants = (currentProduct.value.sizeVariants || []).filter(
         (v) => v.sizeName && Number(v.stockQuantity) >= 0
       );
@@ -389,26 +364,26 @@ const saveProduct = async () => {
         throw new Error("Vui lòng thêm ít nhất một size và số lượng hợp lệ.");
       }
 
-      // Gửi POST cho từng biến thể Size
       await Promise.all(
         validVariants.map(async (variant) => {
           const selectedSize = sizes.value.find(
             (s) => s.sizeName === variant.sizeName
           );
           const sizeId = selectedSize ? selectedSize.sizeId : null;
-          
-          const variantStatus = Number(variant.stockQuantity) > 0; 
-          
+
+          const variantStatus = Number(variant.stockQuantity) > 0;
+
           return axios.post("https://localhost:7055/api/Product", {
             products: {
               productName: currentProduct.value.productName,
               price: Number(currentProduct.value.price),
               categoryId: currentProduct.value.categoryId,
-              status: variantStatus, 
+              status: variantStatus,
             },
             productDetails: {
               stockQuantity: Number(variant.stockQuantity),
-              image: currentProduct.value.image,
+              // QUAN TRỌNG: không gửi base64 nữa
+              image: null,
             },
             sizes: {
               sizeId: sizeId,
@@ -429,7 +404,7 @@ const saveProduct = async () => {
       ? bs.Modal.getInstance(document.getElementById("productModal"))
       : window.bootstrap?.Modal?.getInstance?.(document.getElementById("productModal"));
     modal && modal.hide();
-    // reload page to reflect saved changes (images and product lists)
+
     window.location.reload();
     currentProduct.value = defaultProductState();
     isEditing.value = false;
@@ -444,9 +419,9 @@ const saveProduct = async () => {
   }
 };
 
-// Xác nhận xóa sản phẩm
+// Xác nhận xóa
 const confirmDeleteProduct = (product) => {
-  currentProduct.value = { ...product }; 
+  currentProduct.value = { ...product };
   const modal = new bootstrap.Modal(document.getElementById("deleteModal"));
   modal.show();
   isEditing.value = false;
@@ -454,14 +429,14 @@ const confirmDeleteProduct = (product) => {
   isAdding.value = false;
 };
 
-// Xóa sản phẩm (Giữ nguyên logic)
+// Xóa
 const deleteProduct = async () => {
   try {
     await axios.delete(
       `https://localhost:7055/api/Product/${currentProduct.value.productId}`
-    ); 
-    
-    await fetchProducts(); 
+    );
+
+    await fetchProducts();
 
     const modal = bootstrap.Modal.getInstance(
       document.getElementById("deleteModal")
@@ -481,7 +456,7 @@ const formatCurrency = (price) => {
 </script>
 
 <template>
-<div class="admin-page">
+  <div class="admin-page">
     <div class="page-header">
       <h2 class="page-title">Quản lý sản phẩm</h2>
       <div class="header-actions">
@@ -544,8 +519,11 @@ const formatCurrency = (price) => {
               <td>{{ index + 1 }}</td>
               <td>
                 <div class="product-name">{{ product.productName }}</div>
-                <div class="text-muted small mt-1" v-if="product.sizeName || product.colorName">
-                    Biến thể: **{{ product.sizeName }}** / **{{ product.colorName }}**
+                <div
+                  class="text-muted small mt-1"
+                  v-if="product.sizeName || product.colorName"
+                >
+                  Biến thể: **{{ product.sizeName }}** / **{{ product.colorName }}**
                 </div>
               </td>
               <td>{{ product.categoryName }}</td>
@@ -559,7 +537,7 @@ const formatCurrency = (price) => {
                 </span>
               </td>
               <td>
-                 <small
+                <small
                   class="text-white px-2 py-1 rounded"
                   :style="{
                     backgroundColor: product.status ? '#28a745' : '#dc3545',
@@ -594,6 +572,7 @@ const formatCurrency = (price) => {
       </div>
     </div>
 
+    <!-- Modal sản phẩm -->
     <div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -659,7 +638,7 @@ const formatCurrency = (price) => {
                       :disabled="!isEditing && !isAdding"
                     />
                   </div>
-                  
+
                   <div class="mb-3">
                     <label class="form-label">Chất liệu</label>
                     <select
@@ -700,9 +679,16 @@ const formatCurrency = (price) => {
                 </div>
 
                 <div class="col-md-6">
-                  <div class="mb-3 border p-3 rounded bg-light" :class="{'bg-warning-subtle': isEditing}">
+                  <div
+                    class="mb-3 border p-3 rounded bg-light"
+                    :class="{'bg-warning-subtle': isEditing}"
+                  >
                     <label class="form-label">
-                       **{{ isEditing ? 'Chỉnh sửa Size & Tồn kho (Chỉ áp dụng cho bản ghi hiện tại):' : 'Thêm các Size & Tồn kho:' }}**
+                      {{
+                        isEditing
+                          ? "Chỉnh sửa Size & Tồn kho (Chỉ áp dụng cho bản ghi hiện tại):"
+                          : "Thêm các Size & Tồn kho:"
+                      }}
                     </label>
                     <div
                       v-for="(variant, idx) in currentProduct.sizeVariants"
@@ -747,19 +733,20 @@ const formatCurrency = (price) => {
                       type="button"
                       class="btn btn-outline-primary btn-sm mt-2"
                       @click="addSizeVariant"
-                      :disabled="!isAdding" 
+                      :disabled="!isAdding"
                       v-if="isAdding"
                     >
                       + Thêm size khác
                     </button>
                     <div v-if="isEditing" class="alert alert-info mt-2 p-2">
-                        **Chế độ Chỉnh sửa:** Chỉ thay đổi được **size và tồn kho** của biến thể đang xem.
+                      **Chế độ Chỉnh sửa:** Chỉ thay đổi được **size và tồn kho**
+                      của biến thể đang xem.
                     </div>
                   </div>
 
                   <div class="mb-3">
                     <label class="form-label">Trạng thái (Hệ thống tự động)</label>
-                     <select
+                    <select
                       class="form-select"
                       :value="currentProduct.status"
                       disabled
@@ -772,7 +759,7 @@ const formatCurrency = (price) => {
                       Trạng thái được tính tự động dựa trên tổng tồn kho.
                     </small>
                   </div>
-                  
+
                   <div class="mb-3">
                     <label class="form-label">Ảnh sản phẩm</label>
                     <input
@@ -782,8 +769,8 @@ const formatCurrency = (price) => {
                       @change="handleImageChange"
                       accept="image/*"
                     />
-                    <small class="text-danger" v-if="isAdding">
-                        *Bắt buộc phải chọn ảnh khi thêm mới.
+                    <small class="text-muted">
+                      Ảnh hiện tại chỉ dùng để xem trước, chưa lưu xuống server.
                     </small>
                   </div>
 
@@ -822,6 +809,7 @@ const formatCurrency = (price) => {
       </div>
     </div>
 
+    <!-- Modal xóa -->
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
@@ -865,7 +853,6 @@ const formatCurrency = (price) => {
 </template>
 
 <style scoped>
-/* Giữ nguyên CSS cũ */
 .admin-page {
   padding: 20px;
 }

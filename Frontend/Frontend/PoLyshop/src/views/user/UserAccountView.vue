@@ -1,139 +1,191 @@
-<script setup>
-import { ref, onMounted, reactive } from "vue";
-import { authState } from "@/untility/authService";
+<script>
+import axios from "axios";
 
-const userProfile = reactive({
-  username: "",
-  fullName: "",
-  email: "",
-  phoneNumber: "",
-  address: "",
-  dateOfBirth: "",
-  gender: "female",
-});
+export default {
+  name: "CheckoutView",
+  data() {
+    return {
+      shippingInfo: {
+        fullName: "",
+        phone: "",
+        email: "",
+        address: "",
+        city: "" 
+      },
+      errors: {},
+      selectedPaymentMethod: "cod",
+      orderNote: "",
+      orderItems: [],
+      subtotal: 0,
+      shippingFee: 30000,
+      discount: 0,
+      availableVouchers: [],
+      selectedVoucherId: null
+    };
+  },
+  computed: {
+    total() { 
+      return Math.max(0, this.subtotal + this.shippingFee - this.discount); 
+    }
+  },
+  created() {
+    this.loadUserInfo();
+    this.loadCheckoutItems();
+    this.fetchVouchers();
+  },
+  methods: {
+    // ✅ LẤY THÔNG TIN TỪ API THEO accountId TRONG sessionStorage
+    async loadUserInfo() {
+      try {
+        // 1. Lấy accountId từ sessionStorage
+        const accountId = sessionStorage.getItem("accountId");
 
-const isEditing = ref(false);
-const isLoading = ref(false);
-const successMessage = ref("");
-const errorMessage = ref("");
+        if (accountId) {
+          // 2. Gọi API get-customer-by-account/{accountId}
+          const res = await axios.get(
+            `https://localhost:7055/api/Customer/get-customer-by-account/${accountId}`
+          );
 
-// Tải thông tin người dùng khi component được tạo
-onMounted(() => {
-  loadUserProfile();
-});
+          const c = res.data || {};
 
-// Lấy thông tin từ localStorage/authState
-function loadUserProfile() {
-  const userData = authState.user.value;
-  if (userData) {
-    userProfile.username = userData.username || "";
-    userProfile.fullName = userData.fullName || "";
-    userProfile.email = userData.email || "";
-    userProfile.phoneNumber = userData.phoneNumber || "";
-    userProfile.address = userData.address || "";
-    userProfile.dateOfBirth = userData.dateOfBirth || "";
-    userProfile.gender = userData.gender === false ? "female" : "male";
+          // 3. Đổ dữ liệu vào shippingInfo
+          this.shippingInfo.fullName = c.fullName || c.username || "";
+          this.shippingInfo.email    = c.email || "";
+          this.shippingInfo.phone    = c.phone || c.phoneNumber || "";
+          this.shippingInfo.address  = c.address || "";
+          // API không có city nên để trống, user tự điền
+          this.shippingInfo.city     = "";
+          return; // Có dữ liệu từ API rồi thì không cần fallback localStorage nữa
+        }
+
+        // 4. Fallback: nếu không có accountId, dùng dữ liệu localStorage cũ
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          this.shippingInfo.fullName = user.fullName || user.username || "";
+          this.shippingInfo.email    = user.email || "";
+          this.shippingInfo.phone    = user.phoneNumber || user.phone || "";
+          this.shippingInfo.address  = user.address || "";
+          this.shippingInfo.city     = user.city || "";
+        }
+      } catch (e) {
+        console.error("Lỗi loadUserInfo:", e);
+      }
+    },
+
+    loadCheckoutItems() {
+      let items = JSON.parse(localStorage.getItem("checkoutItems") || "[]");
+      if (items.length === 0) {
+        const cartItems = JSON.parse(localStorage.getItem("polyshop_cart") || "[]");
+        items = cartItems.filter((item) => item.selected !== false);
+      }
+      this.orderItems = items;
+      this.subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
+    },
+
+    async fetchVouchers() {
+      try {
+        const res = await axios.get("https://localhost:7055/api/Promotion");
+        const all = res.data.$values || res.data || [];
+        const today = new Date().toISOString().split('T')[0];
+        this.availableVouchers = all.filter(p => 
+          (p.productId === null || p.ProductID === null) && 
+          (p.status === "Đang hoạt động" || p.Status === "Đang hoạt động") &&
+          ((p.startDate && p.startDate <= today) || (p.StartDate && p.StartDate <= today)) &&
+          ((p.endDate && p.endDate >= today) || (p.EndDate && p.EndDate >= today))
+        );
+      } catch (err) { 
+        console.error(err); 
+      }
+    },
+
+    applySelectedVoucher() {
+      if (!this.selectedVoucherId) { 
+        this.discount = 0; 
+        return; 
+      }
+      const v = this.availableVouchers.find(item => 
+        (item.id || item.promotionId || item.PromotionId) === this.selectedVoucherId
+      );
+      if (v) {
+        const val = Number(v.discountValue || v.DiscountValue || 0);
+        const type = String(v.discountType || v.DiscountType);
+        if (type === "1") {
+          this.discount = Math.round((this.subtotal * val) / 100);
+        } else {
+          this.discount = val;
+        }
+        if (this.discount > this.subtotal) this.discount = this.subtotal;
+      }
+    },
+
+    formatPrice(price) {
+      return new Intl.NumberFormat("vi-VN", { 
+        style: "currency", 
+        currency: "VND" 
+      }).format(price);
+    },
+
+    validateForm() {
+      this.errors = {};
+      let isValid = true;
+      if (!this.shippingInfo.fullName) { 
+        this.errors.fullName = "Nhập họ tên"; 
+        isValid = false; 
+      }
+      if (!this.shippingInfo.phone) { 
+        this.errors.phone = "Nhập số điện thoại"; 
+        isValid = false; 
+      }
+      if (!this.shippingInfo.address) { 
+        this.errors.address = "Nhập địa chỉ"; 
+        isValid = false; 
+      }
+      if (!this.shippingInfo.city) { 
+        this.errors.city = "Nhập Tỉnh/Thành"; 
+        isValid = false; 
+      }
+      return isValid;
+    },
+
+    placeOrder() {
+      if (!this.validateForm()) {
+        window.scrollTo(0, 0);
+        return;
+      }
+      
+      const order = {
+        id: "ORD-" + Date.now(),
+        date: new Date().toISOString(),
+        status: "pending",
+        customer: {
+          ...this.shippingInfo,
+          fullAddress: `${this.shippingInfo.address}, ${this.shippingInfo.city}`
+        },
+        payment: { method: this.selectedPaymentMethod },
+        items: this.orderItems,
+        subtotal: this.subtotal,
+        shippingFee: this.shippingFee,
+        discount: this.discount,
+        total: this.total,
+        note: this.orderNote,
+      };
+
+      let userOrders = JSON.parse(localStorage.getItem("userOrders") || "[]");
+      userOrders.push(order);
+      localStorage.setItem("userOrders", JSON.stringify(userOrders));
+      
+      localStorage.removeItem("polyshop_cart");
+      localStorage.removeItem("checkoutItems");
+
+      alert("Đặt hàng thành công!");
+      this.$router.push(`/order-success/${order.id}`);
+    }
   }
-}
-
-// Bật chế độ chỉnh sửa
-function enableEditing() {
-  isEditing.value = true;
-}
-
-// Hủy chỉnh sửa
-function cancelEditing() {
-  isEditing.value = false;
-  loadUserProfile(); // Tải lại thông tin ban đầu
-  successMessage.value = "";
-  errorMessage.value = "";
-}
-
-// Lưu thông tin cập nhật
-async function saveProfile() {
-  isLoading.value = true;
-  successMessage.value = "";
-  errorMessage.value = "";
-
-  try {
-    // Giả lập API call để cập nhật thông tin
-    // Trong thực tế, bạn sẽ gọi API cập nhật thông tin
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Giả lập thành công
-    successMessage.value = "Thông tin tài khoản đã được cập nhật!";
-    isEditing.value = false;
-
-    // Cập nhật lại authState nếu cần
-    // authState.user.value = { ...authState.user.value, ...userProfile };
-  } catch (error) {
-    errorMessage.value = "Có lỗi xảy ra khi cập nhật thông tin.";
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-// Đổi mật khẩu
-const changePasswordForm = reactive({
-  currentPassword: "",
-  newPassword: "",
-  confirmPassword: "",
-});
-
-const showChangePassword = ref(false);
-const passwordErrors = ref({});
-
-function toggleChangePassword() {
-  showChangePassword.value = !showChangePassword.value;
-  changePasswordForm.currentPassword = "";
-  changePasswordForm.newPassword = "";
-  changePasswordForm.confirmPassword = "";
-  passwordErrors.value = {};
-}
-
-async function changePassword() {
-  // Kiểm tra dữ liệu đầu vào
-  passwordErrors.value = {};
-
-  if (!changePasswordForm.currentPassword) {
-    passwordErrors.value.currentPassword = "Vui lòng nhập mật khẩu hiện tại";
-  }
-
-  if (!changePasswordForm.newPassword) {
-    passwordErrors.value.newPassword = "Vui lòng nhập mật khẩu mới";
-  } else if (changePasswordForm.newPassword.length < 6) {
-    passwordErrors.value.newPassword = "Mật khẩu phải có ít nhất 6 ký tự";
-  }
-
-  if (!changePasswordForm.confirmPassword) {
-    passwordErrors.value.confirmPassword = "Vui lòng xác nhận mật khẩu";
-  } else if (
-    changePasswordForm.newPassword !== changePasswordForm.confirmPassword
-  ) {
-    passwordErrors.value.confirmPassword = "Xác nhận mật khẩu không khớp";
-  }
-
-  // Nếu có lỗi, không tiếp tục
-  if (Object.keys(passwordErrors.value).length > 0) {
-    return;
-  }
-
-  isLoading.value = true;
-
-  try {
-    // Giả lập API call để đổi mật khẩu
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Giả lập thành công
-    successMessage.value = "Mật khẩu đã được cập nhật thành công!";
-    showChangePassword.value = false;
-  } catch (error) {
-    errorMessage.value = "Có lỗi xảy ra khi đổi mật khẩu.";
-  } finally {
-    isLoading.value = false;
-  }
-}
+};
 </script>
+
+
 
 <template>
   <div class="account-page">
@@ -162,71 +214,42 @@ async function changePassword() {
             <div class="form-row">
               <div class="form-group">
                 <label for="username">Tên đăng nhập:</label>
-                <input
-                  type="text"
-                  id="username"
-                  v-model="userProfile.username"
-                  :disabled="true"
-                />
+                <input type="text" id="username" v-model="userProfile.username" :disabled="true" />
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="fullName">Họ tên:</label>
-                <input
-                  type="text"
-                  id="fullName"
-                  v-model="userProfile.fullName"
-                  :disabled="!isEditing"
-                />
+                <input type="text" id="fullName" v-model="userProfile.fullName" :disabled="!isEditing" />
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="email">Email:</label>
-                <input
-                  type="email"
-                  id="email"
-                  v-model="userProfile.email"
-                  :disabled="!isEditing"
-                />
+                <input type="email" id="email" v-model="userProfile.email" :disabled="!isEditing" />
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="phone">Số điện thoại:</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  v-model="userProfile.phoneNumber"
-                  :disabled="!isEditing"
-                />
+                <input type="tel" id="phone" v-model="userProfile.phoneNumber" :disabled="!isEditing" />
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="address">Địa chỉ:</label>
-                <textarea
-                  id="address"
-                  v-model="userProfile.address"
-                  :disabled="!isEditing"
-                ></textarea>
+                <textarea id="address" v-model="userProfile.address" :disabled="!isEditing"></textarea>
               </div>
             </div>
 
             <div class="form-row">
               <div class="form-group">
                 <label for="dob">Ngày sinh:</label>
-                <input
-                  type="date"
-                  id="dob"
-                  v-model="userProfile.dateOfBirth"
-                  :disabled="!isEditing"
-                />
+                <input type="date" id="dob" v-model="userProfile.dateOfBirth" :disabled="!isEditing" />
               </div>
             </div>
 
@@ -235,21 +258,11 @@ async function changePassword() {
                 <label>Giới tính:</label>
                 <div class="gender-options">
                   <label class="gender-option">
-                    <input
-                      type="radio"
-                      v-model="userProfile.gender"
-                      value="female"
-                      :disabled="!isEditing"
-                    />
+                    <input type="radio" v-model="userProfile.gender" value="female" :disabled="!isEditing" />
                     <span>Nữ</span>
                   </label>
                   <label class="gender-option">
-                    <input
-                      type="radio"
-                      v-model="userProfile.gender"
-                      value="male"
-                      :disabled="!isEditing"
-                    />
+                    <input type="radio" v-model="userProfile.gender" value="male" :disabled="!isEditing" />
                     <span>Nam</span>
                   </label>
                 </div>
@@ -284,11 +297,7 @@ async function changePassword() {
       <div class="account-section">
         <div class="section-header">
           <h2>Mật khẩu</h2>
-          <button
-            v-if="!showChangePassword"
-            @click="toggleChangePassword"
-            class="btn-edit"
-          >
+          <button v-if="!showChangePassword" @click="toggleChangePassword" class="btn-edit">
             <i class="bi bi-shield-lock"></i> Đổi mật khẩu
           </button>
         </div>
@@ -297,11 +306,7 @@ async function changePassword() {
           <form @submit.prevent="changePassword" class="password-form">
             <div class="form-group">
               <label for="currentPassword">Mật khẩu hiện tại:</label>
-              <input
-                type="password"
-                id="currentPassword"
-                v-model="changePasswordForm.currentPassword"
-              />
+              <input type="password" id="currentPassword" v-model="changePasswordForm.currentPassword" />
               <p class="error-message" v-if="passwordErrors.currentPassword">
                 {{ passwordErrors.currentPassword }}
               </p>
@@ -309,11 +314,7 @@ async function changePassword() {
 
             <div class="form-group">
               <label for="newPassword">Mật khẩu mới:</label>
-              <input
-                type="password"
-                id="newPassword"
-                v-model="changePasswordForm.newPassword"
-              />
+              <input type="password" id="newPassword" v-model="changePasswordForm.newPassword" />
               <p class="error-message" v-if="passwordErrors.newPassword">
                 {{ passwordErrors.newPassword }}
               </p>
@@ -321,22 +322,14 @@ async function changePassword() {
 
             <div class="form-group">
               <label for="confirmPassword">Xác nhận mật khẩu mới:</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                v-model="changePasswordForm.confirmPassword"
-              />
+              <input type="password" id="confirmPassword" v-model="changePasswordForm.confirmPassword" />
               <p class="error-message" v-if="passwordErrors.confirmPassword">
                 {{ passwordErrors.confirmPassword }}
               </p>
             </div>
 
             <div class="button-group">
-              <button
-                type="button"
-                @click="toggleChangePassword"
-                class="btn-cancel"
-              >
+              <button type="button" @click="toggleChangePassword" class="btn-cancel">
                 Hủy
               </button>
               <button type="submit" class="btn-save" :disabled="isLoading">
@@ -545,6 +538,7 @@ async function changePassword() {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

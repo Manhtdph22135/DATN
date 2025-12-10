@@ -26,24 +26,33 @@ onMounted(async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    // Gọi 4 API cùng lúc
-    const [
-      productRes, 
-      categoryRes,
-      sizeRes,
-      colorRes
-    ] = await Promise.all([
+    const [productRes, categoryRes, sizeRes, colorRes] = await Promise.all([
       axios.get("https://localhost:7055/api/Product"),
       axios.get("https://localhost:7055/api/ProductCategory"),
-      axios.get("https://localhost:7055/api/Product/Sizes"), // GỌI API SIZE MỚI
-      axios.get("https://localhost:7055/api/Product/Colors")  // GỌI API MÀU MỚI
+      axios.get("https://localhost:7055/api/Sizes"),
+      axios.get("https://localhost:7055/api/Colors"),
     ]);
 
-    products.value = productRes.data.$values || productRes.data || [];
-    categories.value = categoryRes.data.$values || categoryRes.data || []; 
-    sizes.value = sizeRes.data.$values || sizeRes.data || []; // Đổ size vào
-    colors.value = colorRes.data.$values || colorRes.data || []; // Đổ màu vào
+    // Sản phẩm: giữ nguyên
+    const productRaw = productRes.data.$values || productRes.data || [];
+    products.value = productRaw;
 
+    // Danh mục: giữ nguyên dạng categoryId / categoryName
+    categories.value = categoryRes.data.$values || categoryRes.data || [];
+
+    // SIZE: convert về { id, name } cho đồng bộ với code phía dưới
+    const sizeRaw = sizeRes.data.$values || sizeRes.data || [];
+    sizes.value = sizeRaw.map((s) => ({
+      id: s.sizeId,
+      name: s.sizeName,
+    }));
+
+    // COLOR: convert về { id, name }
+    const colorRaw = colorRes.data.$values || colorRes.data || [];
+    colors.value = colorRaw.map((c) => ({
+      id: c.colorId,
+      name: c.colorName,
+    }));
   } catch (err) {
     console.error(err);
     error.value = "Đã xảy ra lỗi khi tải dữ liệu.";
@@ -52,12 +61,13 @@ onMounted(async () => {
   }
 });
 
+
 // 4. CẬP NHẬT BỘ LỌC ĐỘNG (Đọc từ ref động)
 const displayCategories = computed(() => {
   if (!products.value) return [];
   const availableCategoryIds = new Set(products.value.map(p => p.categoryId));
   // Lấy 'categories' từ ref, và lọc theo trang (Áo/Quần)
-  return categories.value.filter(cat => 
+  return categories.value.filter(cat =>
     availableCategoryIds.has(cat.categoryId) &&
     cat.categoryName.startsWith("Quần") // <-- Sửa "Áo" thành "Quần" cho trang Quần
   );
@@ -84,73 +94,75 @@ const filteredProducts = computed(() => {
     return [];
   }
 
+  // CHỈ LẤY SẢN PHẨM THUỘC NHÓM "Quần" CHO TRANG NÀY
+  const pageProducts = products.value.filter((p) =>
+    p.categoryName?.trim().startsWith("Quần")
+  );
+
   // --- BƯỚC A: GỘP SẢN PHẨM (Dùng ID) ---
   const productMap = new Map();
-  for (const item of products.value) {
-    // Đảm bảo API đã trả về các ID
-    if (!item.categoryId || !item.sizeId || !item.colorId) continue; 
+
+  for (const item of pageProducts) {
+    // Đảm bảo API có đủ ID
+    if (!item.categoryId || !item.sizeId || !item.colorId) continue;
 
     if (!productMap.has(item.productId)) {
       productMap.set(item.productId, {
         ...item,
         categoryIds: new Set(),
         sizeIds: new Set(),
-        colorIds: new Set()
+        colorIds: new Set(),
       });
     }
+
     const prod = productMap.get(item.productId);
     prod.categoryIds.add(item.categoryId);
     prod.sizeIds.add(item.sizeId);
     prod.colorIds.add(item.colorId);
   }
-  
-  let result = Array.from(productMap.values()).map(prod => ({
+
+  let result = Array.from(productMap.values()).map((prod) => ({
     ...prod,
     categoryIds: Array.from(prod.categoryIds),
     sizeIds: Array.from(prod.sizeIds),
-    colorIds: Array.from(prod.colorIds)
+    colorIds: Array.from(prod.colorIds),
   }));
-  
-  // --- BƯỚC B: CHẠY BỘ LỌC ---
 
-  // Lấy ra ID của các category thuộc trang "Áo"
-  const pageCategoryIds = categories.value
-    .filter(c => c.categoryName.startsWith("Quần")) // <-- Sửa "Áo" thành "Quần" cho trang Quần
-    .map(c => c.categoryId);
-
-  // Lọc bỏ tất cả sản phẩm không phải là "Áo"
-  result = result.filter(p => p.categoryIds.some(id => pageCategoryIds.includes(id)));
+  // --- BƯỚC B: CHẠY BỘ LỌC NGƯỜI DÙNG CHỌN ---
 
   // Filter by category
   if (selectedFilters.value.categories.length > 0) {
     result = result.filter((product) =>
-      product.categoryIds.some(id => selectedFilters.value.categories.includes(id))
+      product.categoryIds.some((id) =>
+        selectedFilters.value.categories.includes(id)
+      )
     );
   }
-  
+
   // Filter by size
   if (selectedFilters.value.sizes.length > 0) {
     result = result.filter((product) =>
-      product.sizeIds.some(id => selectedFilters.value.sizes.includes(id))
+      product.sizeIds.some((id) => selectedFilters.value.sizes.includes(id))
     );
   }
 
   // Filter by color
   if (selectedFilters.value.colors.length > 0) {
     result = result.filter((product) =>
-      product.colorIds.some(id => selectedFilters.value.colors.includes(id))
+      product.colorIds.some((id) => selectedFilters.value.colors.includes(id))
     );
   }
-  
-  // (Logic lọc Price, Sort y hệt như cũ)
+
   // Sort
   if (selectedSort.value === "price-asc") {
-    result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price)); // Thêm parseFloat
+    result.sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
   } else if (selectedSort.value === "price-desc") {
-    result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); // Thêm parseFloat
+    result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price));
   }
-return result;
-  });
+
+  return result;
+});
+
 
 // 6. GIỮ NGUYÊN CÁC HÀM CÒN LẠI
 function toggleFilter(type, value) {
@@ -209,7 +221,7 @@ const colorNameMap = {
   "Nâu": "#A52A2A",
   "Be": "#F5F5DC",
   "Xám": "#808080",
-  
+
 
   // Màu từ trang Quần
   "Xanh đậm": "#000080",
@@ -221,7 +233,7 @@ const colorNameMap = {
 // ***** THAY THẾ HÀM CŨ BẰNG HÀM NÀY *****
 function getColorCodeById(id) {
   if (!colors.value) return '#FFF'; // Trả về nếu chưa tải
-  
+
   // 1. Tìm đối tượng màu bằng ID (ví dụ: tìm ID 1)
   const colorObj = colors.value.find(c => c.id === id);
   if (!colorObj) return '#FFF'; // Không tìm thấy
@@ -256,14 +268,14 @@ const handleAddToCart = (product) => {
     price: product.price,
     image: product.image,
     category: product.categoryName || 'Quần',
-    
+
     // Lưu thông tin chi tiết
     sizeId: firstSizeId,
     sizeName: sizeObj ? sizeObj.name : 'Mặc định',
-    
+
     colorId: firstColorId,
     colorName: colorObj ? colorObj.name : 'Mặc định',
-    
+
     quantity: 1,
     selected: true
   };
@@ -276,14 +288,12 @@ const handleAddToCart = (product) => {
 <template>
   <div class="product-page">
     <div class="page-header">
-      <h1>Quần</h1> <p class="subtitle">Tất cả các mẫu quần mới nhất từ POLY</p>
+      <h1>Quần</h1>
+      <p class="subtitle">Tất cả các mẫu quần mới nhất từ POLY</p>
     </div>
 
     <div class="product-container">
-      <div
-        class="filter-sidebar"
-        :class="{ 'mobile-active': showMobileFilters }"
-      >
+      <div class="filter-sidebar" :class="{ 'mobile-active': showMobileFilters }">
         <div class="filter-header">
           <h3>BỘ LỌC</h3>
           <button class="close-filters" @click="toggleMobileFilters">
@@ -292,50 +302,37 @@ const handleAddToCart = (product) => {
         </div>
 
         <div class="filter-section">
-          <h4>Loại quần</h4> <div class="filter-options">
-            <div
-              v-for="category in displayCategories"
-              :key="category.categoryId"
-              class="filter-option"
+          <h4>Loại quần</h4>
+          <div class="filter-options">
+            <div v-for="category in displayCategories" :key="category.categoryId" class="filter-option"
               :class="{ active: isFilterActive('categories', category.categoryId) }"
-              @click="toggleFilter('categories', category.categoryId)"
-            >
+              @click="toggleFilter('categories', category.categoryId)">
               <span>{{ category.categoryName }}</span>
-              <i
-                v-if="isFilterActive('categories', category.categoryId)"
-                class="bi bi-check-lg"
-              ></i>
+              <i v-if="isFilterActive('categories', category.categoryId)" class="bi bi-check-lg"></i>
             </div>
           </div>
         </div>
 
         <div class="filter-section">
-  <h4>Kích thước</h4>
-  <div class="size-options">
-    <div
-      v-for="size in displaySizes" :key="size.id" class="size-option"
-      :class="{ active: isFilterActive('sizes', size.id) }" @click="toggleFilter('sizes', size.id)" >
-      {{ size.name }} </div>
-  </div>
-</div>
+          <h4>Kích thước</h4>
+          <div class="size-options">
+            <div v-for="size in displaySizes" :key="size.id" class="size-option"
+              :class="{ active: isFilterActive('sizes', size.id) }" @click="toggleFilter('sizes', size.id)">
+              {{ size.name }} </div>
+          </div>
+        </div>
 
         <div class="filter-section">
-  <h4>Màu sắc</h4>
-  <div class="color-options">
-                  <div
-                    v-for="color in displayColors"
-                    :key="color.id"
-                    class="color-option"
-                    :class="{ active: isFilterActive('colors', color.id) }"
-                    @click="toggleFilter('colors', color.id)"
-                  >
-                    <span
-                      class="color-sample"
-                      :style="`background-color: ${colorNameMap[color.name.trim()] || '#FFF'}`"
-                    ></span> <span class="color-name">{{ color.name }}</span>
-                  </div>
-                </div>
-</div>
+          <h4>Màu sắc</h4>
+          <div class="color-options">
+            <div v-for="color in displayColors" :key="color.id" class="color-option"
+              :class="{ active: isFilterActive('colors', color.id) }" @click="toggleFilter('colors', color.id)">
+              <span class="color-sample"
+                :style="`background-color: ${colorNameMap[color.name.trim()] || '#FFF'}`"></span> <span
+                class="color-name">{{ color.name }}</span>
+            </div>
+          </div>
+        </div>
 
         <button class="reset-button" @click="resetFilters">
           <i class="bi bi-arrow-counterclockwise"></i> Xóa bộ lọc
@@ -376,11 +373,7 @@ const handleAddToCart = (product) => {
           </div>
 
           <div v-else class="products-grid">
-            <div
-              v-for="product in filteredProducts"
-              :key="product.productId"
-              class="product-card"
-            >
+            <div v-for="product in filteredProducts" :key="product.productId" class="product-card">
               <div class="product-image">
                 <img :src="product.image" :alt="product.productName" />
                 <div class="product-tags">
@@ -391,36 +384,29 @@ const handleAddToCart = (product) => {
 
               <div class="product-details">
                 <h3 class="product-name">{{ product.productName }}</h3>
-                
+
                 <div class="product-price">
                   <span class="price">{{ formatCurrency(product.price) }}</span>
-                  <span
-                    v-if="product.originalPrice > product.price"
-                    class="original-price"
-                  >
+                  <span v-if="product.originalPrice > product.price" class="original-price">
                     {{ formatCurrency(product.originalPrice) }}
                   </span>
                 </div>
 
                 <div class="product-colors" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
-                  <span
-                    v-for="colorId in product.colorIds" :key="colorId"
-                    class="color-dot"
-                    :style="`background-color: ${getColorCodeById(colorId)}; width: 15px; height: 15px; border-radius: 50%; border: 1px solid #ddd; display: inline-block;`"
-                  ></span> </div>
+                  <span v-for="colorId in product.colorIds" :key="colorId" class="color-dot"
+                    :style="`background-color: ${getColorCodeById(colorId)}; width: 15px; height: 15px; border-radius: 50%; border: 1px solid #ddd; display: inline-block;`"></span>
+                </div>
                 <div class="product-card-sizes" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
-                  <span 
-                    v-for="sizeId in product.sizeIds" :key="sizeId" 
-                    style="font-size: 12px; border: 1px solid #ddd; padding: 2px 7px; border-radius: 3px; text-transform: uppercase;"
-                  >
+                  <span v-for="sizeId in product.sizeIds" :key="sizeId"
+                    style="font-size: 12px; border: 1px solid #ddd; padding: 2px 7px; border-radius: 3px; text-transform: uppercase;">
                     {{ getSizeNameById(sizeId) }} </span>
                 </div>
-                </div>
+              </div>
 
               <div class="product-actions">
                 <button class="add-to-cart" @click="handleAddToCart(product)">
-  Thêm vào giỏ
-</button>
+                  Thêm vào giỏ
+                </button>
               </div>
             </div>
           </div>
@@ -680,6 +666,7 @@ const handleAddToCart = (product) => {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }

@@ -36,8 +36,8 @@ onMounted(async () => {
     ] = await Promise.all([
       axios.get("https://localhost:7055/api/Product"),
       axios.get("https://localhost:7055/api/ProductCategory"),
-      axios.get("https://localhost:7055/api/Product/Sizes"), // GỌI API SIZE MỚI
-      axios.get("https://localhost:7055/api/Product/Colors")  // GỌI API MÀU MỚI
+      axios.get("https://localhost:7055/api/Sizes"), // GỌI API SIZE MỚI
+      axios.get("https://localhost:7055/api/Colors")  // GỌI API MÀU MỚI
     ]);
 
     products.value = productRes.data.$values || productRes.data || [];
@@ -51,6 +51,8 @@ onMounted(async () => {
   } finally {
     isLoading.value = false;
   }
+  console.log('Products from API:', products.value);
+  console.log('Categories from API:', categories.value);
 });
 
 // 4. CẬP NHẬT BỘ LỌC ĐỘNG (Đọc từ ref động)
@@ -58,10 +60,11 @@ const displayCategories = computed(() => {
   if (!products.value) return [];
   const availableCategoryIds = new Set(products.value.map(p => p.categoryId));
   // Lấy 'categories' từ ref, và lọc theo trang (Áo/Quần)
-  return categories.value.filter(cat => 
-    availableCategoryIds.has(cat.categoryId) &&
-    cat.categoryName.startsWith("Áo") // <-- Sửa "Áo" thành "Quần" cho trang Quần
-  );
+  return categories.value.filter(cat =>
+  availableCategoryIds.has(cat.categoryId) &&
+  cat.categoryName &&
+  cat.categoryName.toLowerCase().includes("áo")
+);
 });
 
 const displaySizes = computed(() => {
@@ -86,11 +89,8 @@ const filteredProducts = computed(() => {
   }
 
   // --- BƯỚC A: GỘP SẢN PHẨM (Dùng ID) ---
-  const productMap = new Map();
+    const productMap = new Map();
   for (const item of products.value) {
-    // Đảm bảo API đã trả về các ID
-    if (!item.categoryId || !item.sizeId || !item.colorId) continue; 
-
     if (!productMap.has(item.productId)) {
       productMap.set(item.productId, {
         ...item,
@@ -99,12 +99,15 @@ const filteredProducts = computed(() => {
         colorIds: new Set()
       });
     }
+
     const prod = productMap.get(item.productId);
-    prod.categoryIds.add(item.categoryId);
-    prod.sizeIds.add(item.sizeId);
-    prod.colorIds.add(item.colorId);
+
+    // Chỉ thêm nếu có, KHÔNG dùng continue
+    if (item.categoryId) prod.categoryIds.add(item.categoryId);
+    if (item.sizeId) prod.sizeIds.add(item.sizeId);
+    if (item.colorId) prod.colorIds.add(item.colorId);
   }
-  
+
   let result = Array.from(productMap.values()).map(prod => ({
     ...prod,
     categoryIds: Array.from(prod.categoryIds),
@@ -115,12 +118,16 @@ const filteredProducts = computed(() => {
   // --- BƯỚC B: CHẠY BỘ LỌC ---
 
   // Lấy ra ID của các category thuộc trang "Áo"
-  const pageCategoryIds = categories.value
-    .filter(c => c.categoryName.startsWith("Áo")) // <-- Sửa "Áo" thành "Quần" cho trang Quần
-    .map(c => c.categoryId);
+    const pageCategoryIds = categories.value
+  .filter(c => c.categoryName && c.categoryName.toLowerCase().includes("áo"))
+  .map(c => c.categoryId);
 
-  // Lọc bỏ tất cả sản phẩm không phải là "Áo"
-  result = result.filter(p => p.categoryIds.some(id => pageCategoryIds.includes(id)));
+  // Chỉ lọc nếu THỰC SỰ tìm được category "Áo"
+  if (pageCategoryIds.length > 0) {
+    result = result.filter(p =>
+      p.categoryIds && p.categoryIds.some(id => pageCategoryIds.includes(id))
+    );
+  }
 
   // Filter by category
   if (selectedFilters.value.categories.length > 0) {
@@ -156,7 +163,7 @@ const filteredProducts = computed(() => {
   } else if (selectedSort.value === "price-desc") {
     result.sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); // Thêm parseFloat
   }
-
+console.log('Filtered result:', result.length);
   return result;
 });
 
