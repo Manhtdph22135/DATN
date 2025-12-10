@@ -2,6 +2,7 @@
 using API.DOT;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -76,6 +77,19 @@ namespace API.Controllers.Account
             return Ok(GetAccounts);
         }
 
+        [HttpPut("update-account-customer")]
+        public async Task<IActionResult> UpdateAccountCustomer([FromBody] UpdateAccountCustomerDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var existingAcc = await _contextShop.Accounts.FindAsync(dto.AccountId);
+            if (existingAcc == null)
+                return NotFound(new { message = "Tài khoản không tồn tại!" });
+            existingAcc.PasswordHash = dto.NewPassword; // nếu dùng hash thì hash tại đây
+            _contextShop.Accounts.Update(existingAcc);
+            await _contextShop.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật mật khẩu tài khoản khách hàng thành công!" });
+        }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto model)
@@ -204,7 +218,8 @@ namespace API.Controllers.Account
                 token = tokenString,
                 username = account.Username,
                 fullName = customer?.FullName ?? account.Username,
-                roleId = account.RoleId
+                roleId = account.RoleId,
+                AccountId = account.AccountId
             });
         }
 

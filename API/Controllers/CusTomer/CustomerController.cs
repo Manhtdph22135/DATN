@@ -1,4 +1,5 @@
 ﻿using API.Context;
+using API.DOT;
 using API.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,37 @@ namespace API.Controllers.CusTomer
         {
             return await _contextShop.Customers.ToListAsync();
         }
+        [HttpGet("get-customer-by-account/{accountId}")]
+        public async Task<ActionResult<object>> GetCustomerByAccount(int accountId)
+        {
+            var customer = await (from c in _contextShop.Customers
+                                  join a in _contextShop.Accounts on c.AccountId equals a.AccountId
+                                  where c.AccountId == accountId
+                                  select new
+                                  {
+                                        c.CustomerId,
+                                        c.FullName,
+                                        c.Email,
+                                        c.Phone,
+                                        c.Gender,
+                                        c.Dob,
+                                        c.Address,
+                                        c.CreateAt,
+                                        c.UpdateAt,
+                                        c.RankMember,
+                                        c.Point,
+                                        a.Username,
+                                        a.PasswordHash,
+                                        a.AccountId,
+                                        a.RoleId
+                                  }).FirstOrDefaultAsync();
+
+            if (customer == null)
+            {
+                return NotFound("Customer not found for the given account ID.");
+            }
+            return Ok(customer);
+        }
 
         // GET: api/Customer/5
         [HttpGet("{id}")]
@@ -40,36 +72,32 @@ namespace API.Controllers.CusTomer
         }
 
         // PUT: api/Customer/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutCustomer(int id, Customer customer)
+        [HttpPut("update-account-customer")]
+        public async Task<IActionResult> UpdateAccountCustomer([FromBody] UpdateAccountCustomerDto dto)
         {
-            if (id != customer.CustomerId)
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var existingAcc = await _contextShop.Accounts.FindAsync(dto.AccountId);
+            if (existingAcc == null)
+                return NotFound(new { message = "Tài khoản không tồn tại!" });
+
+            // Nếu muốn check mật khẩu cũ (chưa hash):
+            if (!string.IsNullOrEmpty(dto.CurrentPassword) &&
+                existingAcc.PasswordHash != dto.CurrentPassword)
             {
-                return BadRequest();
+                return BadRequest(new { message = "Mật khẩu hiện tại không đúng!" });
             }
 
-            _contextShop.Entry(customer).State = EntityState.Modified;
+            // TODO: nếu dùng hash thì hash tại đây
+            existingAcc.PasswordHash = dto.NewPassword;
 
-            try
-            {
-                await _contextShop.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!CustomerExists(id))
-                {
-                    _contextShop.Customers.Update(customer);
-                    _contextShop.SaveChanges();
-                    return Ok("Cập Nhật Thành Công");
-                }
-                else
-                {
-                    throw;
-                }
-            }
+            _contextShop.Accounts.Update(existingAcc);
+            await _contextShop.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "Cập nhật mật khẩu tài khoản khách hàng thành công!" });
         }
+
 
         // POST: api/Customer
         [HttpPost]

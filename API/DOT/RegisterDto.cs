@@ -33,4 +33,14 @@ namespace API.DOT
 
         public string? Address { get; set; }
     }
+    public class UpdateAccountCustomerDto
+    {
+        public int AccountId { get; set; }
+
+        // nếu muốn bắt buộc phải nhập mật khẩu hiện tại thì để [Required]
+        public string? CurrentPassword { get; set; }
+
+        [Required]
+        public string NewPassword { get; set; } = string.Empty;
+    }
 }

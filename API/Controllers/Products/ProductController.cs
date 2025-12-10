@@ -2,91 +2,89 @@
 using API.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Collections;
 using API.DOT;
+using Microsoft.AspNetCore.Http;
 
 namespace API.Controllers.Products
 {
     [Route("api/[controller]")]
-    public class ProductController : Controller
+    [ApiController]
+    public class ProductController : ControllerBase
     {
         private readonly DbContextShop _contextShop;
         private readonly IWebHostEnvironment _env;
+
         public ProductController(DbContextShop contextShop, IWebHostEnvironment env)
         {
             _contextShop = contextShop;
             _env = env;
         }
-        
-       
+
+        // GET: api/Product
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
         {
-            var today = DateOnly.FromDateTime(DateTime.Now); // Lấy ngày giờ hiện tại
+            var today = DateOnly.FromDateTime(DateTime.Now);
 
-            var query = from p in _contextShop.Products
-                        join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
-                        join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
-                        join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
-                        join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
-                        join co in _contextShop.Colors on pd.ColorId equals co.ColorId
+            var query =
+                from p in _contextShop.Products
+                join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
+                join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
+                join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
+                join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
+                join co in _contextShop.Colors on pd.ColorId equals co.ColorId
+                join promo in _contextShop.Promotions on p.ProductId equals promo.ProductId into promoGroup
+                from pm in promoGroup.DefaultIfEmpty()
+                select new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.CreatedAt,
+                    p.UpdateAt,
+                    p.Status,
+                    pd.ProductDetailId,
+                    pd.StockQuantity,
+                    pd.Image,
+                    c.CategoryName,
+                    c.CategoryId,
+                    m.MaterialName,
+                    s.SizeName,
+                    s.SizeId,
+                    co.ColorName,
+                    co.ColorId,
 
-                        // --- THÊM PHẦN JOIN BẢNG PROMOTION (Left Join) ---
-                        join promo in _contextShop.Promotions on p.ProductId equals promo.ProductId into promoGroup
-                        from pm in promoGroup.DefaultIfEmpty()
-                            // -------------------------------------------------
+                    IsPromoActive = pm != null
+                                    && pm.Status == "Đang hoạt động"
+                                    && pm.StartDate <= today
+                                    && pm.EndDate >= today,
 
-                        select new
-                        {
-                            p.ProductId,
-                            p.ProductName,
-                            p.CreatedAt,
-                            p.UpdateAt,
-                            p.Status,
-                            pd.ProductDetailId,
-                            pd.StockQuantity,
-                            pd.Image,
-                            c.CategoryName,
-                            c.CategoryId, // ID danh mục
-                            m.MaterialName,
-                            s.SizeName,
-                            s.SizeId,     // ID size
-                            co.ColorName,
-                            co.ColorId,   // ID màu
+                    OriginalPrice = p.Price,
 
-                            // --- TÍNH TOÁN GIÁ & KHUYẾN MÃI ---
+                    Price = (pm != null
+                            && pm.Status == "Đang hoạt động"
+                            && pm.StartDate <= today
+                            && pm.EndDate >= today)
+                            ? p.Price * (100 - pm.DiscountValue) / 100
+                            : p.Price,
 
-                            // 1. Kiểm tra xem có khuyến mãi hợp lệ không?
-                            // (Phải "Đang hoạt động" và còn trong thời hạn)
-                            IsPromoActive = pm != null
-                                            && pm.Status == "Đang hoạt động"
-                                            && pm.StartDate <= today
-                                            && pm.EndDate >= today,
-
-                            // 2. Giá gốc (Là giá niêm yết trong bảng Product)
-                            OriginalPrice = p.Price,
-
-                            // 3. Giá bán (Nếu có KM thì tính giá giảm, nếu không thì giữ nguyên)
-                            // Giả sử DiscountValue là % (ví dụ 50 nghĩa là 50%)
-                            Price = (pm != null && pm.Status == "Đang hoạt động" && pm.StartDate <= today && pm.EndDate >= today)
-                                    ? p.Price * (100 - pm.DiscountValue) / 100
-                                    : p.Price,
-
-                            // 4. % Giảm giá (Để hiển thị thẻ đỏ -33%)
-                            DiscountPercent = (pm != null && pm.Status == "Đang hoạt động" && pm.StartDate <= today && pm.EndDate >= today)
-                                              ? pm.DiscountValue
-                                              : 0
-                            // ----------------------------------
-                        };
+                    DiscountPercent = (pm != null
+                                      && pm.Status == "Đang hoạt động"
+                                      && pm.StartDate <= today
+                                      && pm.EndDate >= today)
+                                      ? pm.DiscountValue
+                                      : 0
+                };
 
             var result = await query.ToListAsync();
-            return Json(result);
+            return Ok(result);
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Product>> GetProduct(int id)
+        // GET: api/Product/5
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult> GetProduct(int id)
         {
-            var query = from p in _contextShop.Products
+            var query =
+                from p in _contextShop.Products
                 join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
                 join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
                 join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
@@ -109,48 +107,60 @@ namespace API.Controllers.Products
                     m.MaterialName,
                     s.SizeName,
                     co.ColorName
-                    
                 };
+
             var result = await query.ToListAsync();
-            return Json(query);
+            if (!result.Any())
+            {
+                return NotFound("Product not found.");
+            }
+
+            return Ok(result);
         }
-        // Fixes: 
-        // 1. Adds await and ToListAsync() to make the method truly async and resolve CS1998 warning.
-        // 2. Changes route to avoid conflict by using "by-category/{categoryId}" instead of "{categoryId}".
+
+        // GET: api/Product/by-category/3
         [HttpGet("by-category/{categoryId:int}")]
         public async Task<ActionResult<IEnumerable<Product>>> GetProductsByCategory(int categoryId)
         {
-            var query = from p in _contextShop.Products
-                        join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
-                        join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
-                        join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
-                        join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
-                        join co in _contextShop.Colors on pd.ColorId equals co.ColorId
-                        where c.CategoryId == categoryId
-                        select new
-                        {
-                            p.ProductId,
-                            p.ProductName,
-                            p.Price,
-                            p.CreatedAt,
-                            p.UpdateAt,
-                            p.Status,
-                            pd.ProductDetailId,
-                            pd.StockQuantity,
-                            pd.Image,
-                            c.CategoryName,
-                            c.Trademark,
-                            m.MaterialName,
-                            s.SizeName,
-                            co.ColorName
-                            
-                        };
+            var query =
+                from p in _contextShop.Products
+                join pd in _contextShop.ProductDetails on p.ProductId equals pd.ProductId
+                join c in _contextShop.ProductCategories on p.CategoryId equals c.CategoryId
+                join m in _contextShop.Materials on pd.MaterialId equals m.MaterialId
+                join s in _contextShop.Sizes on pd.SizeId equals s.SizeId
+                join co in _contextShop.Colors on pd.ColorId equals co.ColorId
+                where c.CategoryId == categoryId
+                select new
+                {
+                    p.ProductId,
+                    p.ProductName,
+                    p.Price,
+                    p.CreatedAt,
+                    p.UpdateAt,
+                    p.Status,
+                    pd.ProductDetailId,
+                    pd.StockQuantity,
+                    pd.Image,
+                    c.CategoryName,
+                    c.Trademark,
+                    m.MaterialName,
+                    s.SizeName,
+                    co.ColorName
+                };
+
             var result = await query.ToListAsync();
-            return Json(result);
+            return Ok(result);
         }
-        [HttpPut("{id}")]
+
+        // PUT: api/Product/5
+        [HttpPut("{id:int}")]
         public async Task<IActionResult> PutProducts(int id, [FromBody] ProductUpdateDto dto)
         {
+            if (dto == null || dto.Products == null || dto.ProductDetails == null)
+            {
+                return BadRequest("Invalid body.");
+            }
+
             if (id != dto.Products.ProductId)
             {
                 return BadRequest("Product ID mismatch.");
@@ -163,18 +173,13 @@ namespace API.Controllers.Products
             }
 
             var existingProductDetail = await _contextShop.ProductDetails
-                .FirstOrDefaultAsync(pd => pd.ProductDetailId == dto.ProductDetails.ProductDetailId && pd.ProductId == id);
+                .FirstOrDefaultAsync(pd => pd.ProductDetailId == dto.ProductDetails.ProductDetailId
+                                           && pd.ProductId == id);
 
             if (existingProductDetail == null)
             {
                 return NotFound("Product detail not found.");
             }
-
-            existingProduct.ProductName = dto.Products.ProductName;
-            existingProduct.Price = dto.Products.Price;
-            existingProduct.CategoryId = dto.Products.CategoryId;
-            existingProduct.Status = dto.Products.Status;
-            existingProduct.UpdateAt = DateTime.Now;
 
             if (!await _contextShop.Sizes.AnyAsync(s => s.SizeId == dto.Sizes.SizeId))
                 return NotFound("Size not found.");
@@ -183,11 +188,18 @@ namespace API.Controllers.Products
             if (!await _contextShop.Materials.AnyAsync(m => m.MaterialId == dto.Materials.MaterialId))
                 return NotFound("Material not found.");
 
+            existingProduct.ProductName = dto.Products.ProductName;
+            existingProduct.Price = dto.Products.Price;
+            existingProduct.CategoryId = dto.Products.CategoryId;
+            existingProduct.Status = dto.Products.Status;
+            existingProduct.UpdateAt = DateTime.Now;
+
             existingProductDetail.SizeId = dto.Sizes.SizeId;
             existingProductDetail.ColorId = dto.Colors.ColorId;
             existingProductDetail.MaterialId = dto.Materials.MaterialId;
             existingProductDetail.StockQuantity = dto.ProductDetails.StockQuantity;
-            existingProductDetail.Image = dto.ProductDetails.Image;
+            // TẠM THỜI KHÔNG CẬP NHẬT ẢNH TỪ FRONTEND JSON
+            // existingProductDetail.Image = dto.ProductDetails.Image;
 
             try
             {
@@ -204,58 +216,21 @@ namespace API.Controllers.Products
 
             return Ok("Product and product detail updated successfully.");
         }
-       
 
-        [HttpGet("Materials")]
-        public async Task<IActionResult> GetMaterials()
-        {
-            var data = await _contextShop.Materials
-                .Select(m => new {
-                    id = m.MaterialId,     // Trả về 'id'
-                    name = m.MaterialName   // Trả về 'name'
-                })
-                .ToListAsync();
-
-            return Ok(data);
-        }
-        [HttpGet("Sizes")] 
-        
-        public async Task<IActionResult> GetSizes()
-        {
-            var data = await _contextShop.Sizes
-                .Select(s => new {
-                    id = s.SizeId,       // Tên là 'id'
-                    name = s.SizeName    // Tên là 'name'
-                })
-                .ToListAsync();
-            return Ok(data);
-        }
-        [HttpGet("Colors")] // Hoặc [HttpGet("Colors")] nếu thêm vào ProductController
-       
-        public async Task<IActionResult> GetColors()
-        {
-            var data = await _contextShop.Colors
-                .Select(c => new {
-                    id = c.ColorId,     // Tên là 'id'
-                    name = c.ColorName // Tên là 'name'
-                      // Giả sử cột mã hex của bạn là ColorCode
-                })
-                .ToListAsync();
-            return Ok(data);
-        }
         // POST: api/Product
         [HttpPost]
-        [Consumes("application/json")]
         public async Task<ActionResult<Product>> PostProduct([FromBody] ProductUpdateDto dto)
         {
             try
             {
-                if (dto.Products == null || dto.ProductDetails == null)
-                {
-                    return BadRequest("Product or ProductDetail data is missing.");
-                }
+                Console.WriteLine("PostProduct called");
 
-                // Validate foreign keys
+                if (dto == null)
+                    return BadRequest("Body is null.");
+
+                if (dto.Products == null || dto.ProductDetails == null)
+                    return BadRequest("Product or ProductDetail data is missing.");
+
                 if (!await _contextShop.ProductCategories.AnyAsync(c => c.CategoryId == dto.Products.CategoryId))
                     return NotFound("Category not found.");
 
@@ -268,7 +243,6 @@ namespace API.Controllers.Products
                 if (!await _contextShop.Materials.AnyAsync(m => m.MaterialId == dto.Materials.MaterialId))
                     return NotFound("Material not found.");
 
-                // Tạo Product
                 var product = new Product
                 {
                     ProductName = dto.Products.ProductName,
@@ -282,53 +256,6 @@ namespace API.Controllers.Products
                 _contextShop.Products.Add(product);
                 await _contextShop.SaveChangesAsync();
 
-                // ================== XỬ LÝ ẢNH BASE64 AN TOÀN ==================
-                string? imagePath = null;
-
-                if (!string.IsNullOrWhiteSpace(dto.ProductDetails.Image))
-                {
-                    try
-                    {
-                        string base64String = dto.ProductDetails.Image;
-
-                        // Nếu dạng: data:image/png;base64,xxxxxxx
-                        int commaIndex = base64String.IndexOf(',');
-                        if (commaIndex >= 0 && commaIndex + 1 < base64String.Length)
-                        {
-                            base64String = base64String.Substring(commaIndex + 1);
-                        }
-
-                        // Decode base64
-                        byte[] bytes = Convert.FromBase64String(base64String);
-
-                        // Xử lý WebRootPath an toàn
-                        var webRoot = _env.WebRootPath;
-                        if (string.IsNullOrEmpty(webRoot))
-                        {
-                            webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-                        }
-
-                        var folder = Path.Combine(webRoot, "images", "products");
-                        if (!Directory.Exists(folder))
-                        {
-                            Directory.CreateDirectory(folder);
-                        }
-
-                        var fileName = Guid.NewGuid().ToString("N") + ".png";
-                        var filePath = Path.Combine(folder, fileName);
-
-                        await System.IO.File.WriteAllBytesAsync(filePath, bytes);
-
-                        imagePath = "/images/products/" + fileName;
-                    }
-                    catch (FormatException)
-                    {
-                        // Base64 không hợp lệ → trả lỗi 400 thay vì văng process
-                        return BadRequest("Invalid image data (base64).");
-                    }
-                }
-
-                // ================== TẠO PRODUCTDETAIL ==================
                 var productDetail = new ProductDetail
                 {
                     ProductId = product.ProductId,
@@ -336,41 +263,41 @@ namespace API.Controllers.Products
                     ColorId = dto.Colors.ColorId,
                     MaterialId = dto.Materials.MaterialId,
                     StockQuantity = dto.ProductDetails.StockQuantity,
-                    Image = imagePath
+                    // TẠM THỜI KHÔNG LƯU ẢNH TỪ JSON
+                    Image = null
                 };
 
                 _contextShop.ProductDetails.Add(productDetail);
                 await _contextShop.SaveChangesAsync();
 
-                return CreatedAtAction("GetProduct", new { id = product.ProductId }, product);
+                Console.WriteLine("PostProduct success, id = " + product.ProductId);
+                return CreatedAtAction(nameof(GetProduct),
+                    new { id = product.ProductId }, product);
             }
             catch (Exception ex)
             {
-                // Log để xem lỗi gì đang làm backend "văng"
                 Console.WriteLine("PostProduct error: " + ex);
-
-                // Trả về 500 thay vì crash app
                 return StatusCode(StatusCodes.Status500InternalServerError,
-                                  "Internal server error in PostProduct");
+                    "Internal server error in PostProduct");
             }
         }
 
-
-        // DELETE: api/Customer/5
-        [HttpDelete("{id}")]
+        // DELETE: api/Product/5
+        [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteProduct(int id)
         {
-            var customer = await _contextShop.Products.FindAsync(id);
-            if (customer == null)
+            var product = await _contextShop.Products.FindAsync(id);
+            if (product == null)
             {
-                return NotFound("Không tìm thấy id khách hàng");
+                return NotFound("Không tìm thấy sản phẩm.");
             }
 
-            _contextShop.Products.Remove(customer);
+            _contextShop.Products.Remove(product);
             await _contextShop.SaveChangesAsync();
             return Ok("Xoá Thành Công");
         }
-        private bool ProductExit(int id)
+
+        private bool ProductExist(int id)
         {
             return _contextShop.Products.Any(e => e.ProductId == id);
         }
